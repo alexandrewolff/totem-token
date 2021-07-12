@@ -9,10 +9,15 @@
   "dependencies": {
     "@openzeppelin/contracts": "^4.2.0"
   },
-  "scripts": {},
+  "scripts": {
+    "test": "truffle test"
+  },
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "eth-gas-reporter": "^0.2.22"
+    "eth-gas-reporter": "^0.2.22",
+    "prettier": "^2.3.2",
+    "prettier-plugin-solidity": "^1.0.0-beta.15",
+    "truffle": "^5.4.0"
   }
 }
