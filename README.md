@@ -13,3 +13,9 @@ npm test
 ## Gas consumption report
 
 Uncomment the reporter line in the truffle-config.js file to get report on gas consumption after tests
+
+## Get test coverage
+
+```
+npm run coverage
+```

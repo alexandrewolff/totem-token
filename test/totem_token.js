@@ -1,13 +1,13 @@
-const totemToken = artifacts.require('TotemToken');
+const TotemToken = artifacts.require('TotemToken');
 
 const {
+  BN,
   constants,
   expectRevert,
   expectEvent,
   time,
 } = require('@openzeppelin/test-helpers');
 const { ZERO_ADDRESS } = constants;
-const bn = web3.utils.BN;
 
 const skipGracePeriod = () => time.increase(time.duration.days(7));
 
@@ -18,12 +18,14 @@ const setBridgeAddress = async (token, bridge, owner) => {
 };
 
 contract('TotemToken', (accounts) => {
-  const initialSupply = new bn('1000000000000000000000000', 10); // 1 millions tokens
+  const name = 'Test Token';
+  const symbol = 'TST';
+  const initialSupply = new BN('1000000000000000000000000', 10); // 1 millions tokens
   let token;
   const [owner, bridge, random, user] = accounts;
 
   beforeEach(async () => {
-    token = await totemToken.new('Test Token', 'TST', initialSupply, {
+    token = await TotemToken.new(name, symbol, initialSupply, {
       from: owner,
     });
   });
@@ -49,6 +51,24 @@ contract('TotemToken', (accounts) => {
     });
   });
 
+  describe('ERC20', () => {
+    it('should have a name', async () => {
+      const res = await token.name();
+      assert(res === name);
+    });
+
+    it('should have a symbol', async () => {
+      const res = await token.symbol();
+      assert(res === symbol);
+    });
+
+    it('should have 18 decimals', async () => {
+      const decimals = new BN(18, 10);
+      const res = await token.decimals();
+      assert(res.eq(decimals));
+    });
+  });
+
   describe('bridge update', () => {
     it('should launch bridge update', async () => {
       const receipt = await token.launchBridgeUpdate(bridge, { from: owner });
@@ -58,20 +78,7 @@ contract('TotemToken', (accounts) => {
         newBridge: bridge,
       });
       assert(res.newBridge === bridge);
-    });
-
-    it('should execute bridge update', async () => {
-      await token.launchBridgeUpdate(bridge, { from: owner });
-
-      skipGracePeriod();
-
-      const receipt = await token.executeBridgeUpdate({ from: owner });
-      const res = await token.getBridge();
-
-      expectEvent(receipt, 'BridgeUpdateExecuted', {
-        newBridge: bridge,
-      });
-      assert(res === bridge);
+      assert(res.executed === false);
     });
 
     it('should not launch bridge update if not owner', async () => {
@@ -81,19 +88,35 @@ contract('TotemToken', (accounts) => {
       );
     });
 
-    it('should not execute bridge update if not owner', async () => {
-      await token.launchBridgeUpdate(bridge, { from: owner });
-      await expectRevert(
-        token.executeBridgeUpdate({ from: random }),
-        'Ownable: caller is not the owner'
-      );
-    });
-
     it('should not launch bridge update if last one not executed', async () => {
       await token.launchBridgeUpdate(random, { from: owner });
       await expectRevert(
         token.launchBridgeUpdate(bridge, { from: owner }),
         'TotemToken: current update not yet executed'
+      );
+    });
+
+    it('should execute bridge update', async () => {
+      await token.launchBridgeUpdate(bridge, { from: owner });
+
+      skipGracePeriod();
+
+      const receipt = await token.executeBridgeUpdate({ from: owner });
+      const resBridge = await token.getBridge();
+      const resUpdate = await token.getBridgeUpdate();
+
+      expectEvent(receipt, 'BridgeUpdateExecuted', {
+        newBridge: bridge,
+      });
+      assert(resBridge === bridge);
+      assert(resUpdate.executed === true);
+    });
+
+    it('should not execute bridge update if not owner', async () => {
+      await token.launchBridgeUpdate(bridge, { from: owner });
+      await expectRevert(
+        token.executeBridgeUpdate({ from: random }),
+        'Ownable: caller is not the owner'
       );
     });
 
@@ -122,13 +145,24 @@ contract('TotemToken', (accounts) => {
         'TotemToken: grace period has not finished'
       );
     });
+
+    it('should not execute if already executed', async () => {
+      await token.launchBridgeUpdate(random, { from: owner });
+      skipGracePeriod();
+      await token.executeBridgeUpdate({ from: owner });
+
+      await expectRevert(
+        token.executeBridgeUpdate({ from: owner }),
+        'TotemToken: update already executed'
+      );
+    });
   });
 
   describe('bridge minting & burning', () => {
     it('should mint if bridge', async () => {
       await setBridgeAddress(token, bridge, owner);
 
-      const amount = new bn('1000', 10);
+      const amount = new BN('1000', 10);
 
       const initialBalance = await token.balanceOf(user);
 
@@ -146,6 +180,15 @@ contract('TotemToken', (accounts) => {
       assert(finalBalance.sub(initialBalance).eq(amount));
     });
 
+    it('should not mint if bridge not initialised and zero address used', async () => {
+      await expectRevert(
+        token.mintFromBridge(user, '1000', {
+          from: ZERO_ADDRESS,
+        }),
+        'error: sender account not recognized'
+      );
+    });
+
     it('should not mint if not bridge', async () => {
       await setBridgeAddress(token, bridge, owner);
       await expectRevert(
@@ -159,7 +202,7 @@ contract('TotemToken', (accounts) => {
     it('should burn if bridge', async () => {
       await setBridgeAddress(token, bridge, owner);
 
-      const amount = new bn('1000', 10);
+      const amount = new BN('1000', 10);
 
       const initialBalance = await token.balanceOf(owner);
 
@@ -177,10 +220,19 @@ contract('TotemToken', (accounts) => {
       assert(initialBalance.sub(finalBalance).eq(amount));
     });
 
+    it('should not burn if bridge not initialised and zero address used', async () => {
+      await expectRevert(
+        token.burnFromBridge(owner, '1000', {
+          from: ZERO_ADDRESS,
+        }),
+        'error: sender account not recognized'
+      );
+    });
+
     it('should not burn if not bridge', async () => {
       await setBridgeAddress(token, bridge, owner);
       await expectRevert(
-        token.burnFromBridge(user, '1000', {
+        token.burnFromBridge(owner, '1000', {
           from: random,
         }),
         'TotemToken: access denied'
