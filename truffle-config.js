@@ -20,11 +20,8 @@ require('dotenv').config();
  *
  */
 
-// const HDWalletProvider = require('@truffle/hdwallet-provider');
-// const infuraKey = "fj4jll3k.....";
-//
-// const fs = require('fs');
-// const mnemonic = fs.readFileSync(".secret").toString().trim();
+const HDWalletProvider = require('@truffle/hdwallet-provider');
+const mnemonic = process.env.MNEMONIC;
 
 module.exports = {
   /**
@@ -47,7 +44,15 @@ module.exports = {
     ganache: {
       host: '127.0.0.1',
       port: 7545,
-      network_id: '5777',
+      network_id: 5777,
+    },
+    bsc_test: {
+      provider: () =>
+        new HDWalletProvider(
+          mnemonic,
+          'https://data-seed-prebsc-1-s3.binance.org:8545'
+        ),
+      network_id: 97,
     },
     // Another network with more advanced options...
     // advanced: {
@@ -79,12 +84,10 @@ module.exports = {
   // Set default mocha options here, use special reporters etc.
   mocha: {
     // timeout: 100000
-    /*
     reporter: 'eth-gas-reporter', // Uncomment to get report on gas consumption
     reporterOptions: {
       coinmarketcap: process.env.COINMARKETCAP_API_KEY,
     },
-    */
   },
 
   // Configure your compilers
@@ -92,20 +95,22 @@ module.exports = {
     solc: {
       version: '0.8.6', // Fetch exact version from solc-bin (default: truffle's version)
       // docker: true,        // Use "0.5.1" you've installed locally with docker (default: false)
-      /*
       settings: {
         // See the solidity docs for advice about optimization and evmVersion
         optimizer: {
           enabled: true,
           runs: 200,
         },
-        evmVersion: 'berlin',
+        // evmVersion: 'berlin',
       },
-      */
     },
   },
 
-  plugins: ['solidity-coverage'],
+  plugins: ['solidity-coverage', 'truffle-plugin-verify'],
+
+  api_keys: {
+    bscscan: process.env.BSCSCAN_API_KEY,
+  },
 
   // Truffle DB is currently disabled by default; to enable it, change enabled: false to enabled: true
   //

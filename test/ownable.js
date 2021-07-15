@@ -1,11 +1,10 @@
+const { expect } = require('chai');
 const {
   constants,
   expectEvent,
   expectRevert,
 } = require('@openzeppelin/test-helpers');
 const { ZERO_ADDRESS } = constants;
-
-const { expect } = require('chai');
 
 const TotemToken = artifacts.require('TotemToken');
 
