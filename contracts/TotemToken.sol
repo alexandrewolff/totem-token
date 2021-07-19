@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.6;
 
+import "./ITotemToken.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -10,7 +11,7 @@ struct BridgeUpdate {
     bool executed;
 }
 
-contract TotemToken is ERC20, Ownable {
+contract TotemToken is ITotemToken, ERC20, Ownable {
     address private bridge;
     BridgeUpdate private bridgeUpdate = BridgeUpdate(address(0), 0, true);
 
@@ -71,6 +72,7 @@ contract TotemToken is ERC20, Ownable {
 
     function mintFromBridge(address account, uint256 amount)
         external
+        override
         onlyBridge
     {
         _mint(account, amount);
@@ -78,6 +80,7 @@ contract TotemToken is ERC20, Ownable {
 
     function burnFromBridge(address account, uint256 amount)
         external
+        override
         onlyBridge
     {
         _burn(account, amount);
