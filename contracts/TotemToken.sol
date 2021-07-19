@@ -44,6 +44,10 @@ contract TotemToken is ERC20, Ownable {
             bridgeUpdate.executed,
             "TotemToken: current update not yet executed"
         );
+        require(
+            isContract(newBridge),
+            "TotemToken: address provided is not a contract"
+        );
 
         uint256 endGracePeriod = block.timestamp + 604800; // 604800 = 7 days
 
@@ -77,5 +81,13 @@ contract TotemToken is ERC20, Ownable {
         onlyBridge
     {
         _burn(account, amount);
+    }
+
+    function isContract(address target) private view returns (bool) {
+        uint256 size;
+        assembly {
+            size := extcodesize(target) // retrieve the size of the code at the address
+        }
+        return size > 0;
     }
 }
