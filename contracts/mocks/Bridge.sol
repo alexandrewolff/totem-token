@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "../ITotemToken.sol";
 
 contract Bridge {
-    ITotemToken totemToken;
+    ITotemToken immutable totemToken;
 
     constructor(ITotemToken _totemToken) {
         totemToken = _totemToken;

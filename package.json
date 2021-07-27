@@ -10,7 +10,7 @@
     "@openzeppelin/contracts": "^4.2.0"
   },
   "scripts": {
-    "test": "truffle test",
+    "test": "truffle test/token/totem_token.js",
     "coverage": "truffle run coverage"
   },
   "author": "",

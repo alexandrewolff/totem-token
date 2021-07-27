@@ -8,12 +8,12 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 struct BridgeUpdate {
     address newBridge;
     uint256 endGracePeriod;
-    bool executed;
+    bool hasToBeExecuted;
 }
 
 contract TotemToken is ITotemToken, ERC20, Ownable {
     address private bridge;
-    BridgeUpdate private bridgeUpdate = BridgeUpdate(address(0), 0, true);
+    BridgeUpdate private bridgeUpdate;
 
     event BridgeUpdateLaunched(address newBridge, uint256 endGracePeriod);
 
@@ -42,8 +42,8 @@ contract TotemToken is ITotemToken, ERC20, Ownable {
 
     function launchBridgeUpdate(address newBridge) external onlyOwner {
         require(
-            bridgeUpdate.executed,
-            "TotemToken: current update not yet executed"
+            !bridgeUpdate.hasToBeExecuted,
+            "TotemToken: current update has to be executed"
         );
         require(
             isContract(newBridge),
@@ -52,7 +52,7 @@ contract TotemToken is ITotemToken, ERC20, Ownable {
 
         uint256 endGracePeriod = block.timestamp + 604800; // 604800 = 7 days
 
-        bridgeUpdate = BridgeUpdate(newBridge, endGracePeriod, false);
+        bridgeUpdate = BridgeUpdate(newBridge, endGracePeriod, true);
 
         emit BridgeUpdateLaunched(newBridge, endGracePeriod);
     }
@@ -62,9 +62,12 @@ contract TotemToken is ITotemToken, ERC20, Ownable {
             bridgeUpdate.endGracePeriod <= block.timestamp,
             "TotemToken: grace period has not finished"
         );
-        require(!bridgeUpdate.executed, "TotemToken: update already executed");
+        require(
+            bridgeUpdate.hasToBeExecuted,
+            "TotemToken: update already executed"
+        );
 
-        bridgeUpdate.executed = true;
+        bridgeUpdate.hasToBeExecuted = false;
         bridge = bridgeUpdate.newBridge;
 
         emit BridgeUpdateExecuted(bridgeUpdate.newBridge);

@@ -36,10 +36,6 @@ contract('TotemToken', (accounts) => {
   });
 
   describe('initialisation', () => {
-    it('should create a contract', async () => {
-      assert.isTrue(true);
-    });
-
     it('should mint at deployment', async () => {
       const res = await token.balanceOf(owner);
       assert.isTrue(res.eq(initialSupply));
@@ -75,6 +71,13 @@ contract('TotemToken', (accounts) => {
   });
 
   describe('bridge update', () => {
+    it('should initialise update at zero address, 0 and false', async () => {
+      const res = await token.getBridgeUpdate();
+      assert(res.newBridge === ZERO_ADDRESS);
+      assert(res.endGracePeriod === '0');
+      assert(res.hasToBeExecuted === false);
+    });
+
     it('should launch bridge update', async () => {
       const receipt = await token.launchBridgeUpdate(bridge.address, {
         from: owner,
@@ -85,7 +88,7 @@ contract('TotemToken', (accounts) => {
         newBridge: bridge.address,
       });
       assert(res.newBridge === bridge.address);
-      assert(res.executed === false);
+      assert(res.hasToBeExecuted === true);
     });
 
     it('should not launch bridge update if not owner', async () => {
@@ -99,7 +102,7 @@ contract('TotemToken', (accounts) => {
       await token.launchBridgeUpdate(bridge.address, { from: owner });
       await expectRevert(
         token.launchBridgeUpdate(bridge.address, { from: owner }),
-        'TotemToken: current update not yet executed'
+        'TotemToken: current update has to be executed'
       );
     });
 
@@ -123,7 +126,7 @@ contract('TotemToken', (accounts) => {
         newBridge: bridge.address,
       });
       assert(resBridge === bridge.address);
-      assert(resUpdate.executed === true);
+      assert(resUpdate.hasToBeExecuted === false);
     });
 
     it('should not execute bridge update if not owner', async () => {
