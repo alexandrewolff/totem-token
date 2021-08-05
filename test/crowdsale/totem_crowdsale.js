@@ -22,6 +22,8 @@ contract('TotemToken', (accounts) => {
   let token;
   let usdc;
   let saleStart;
+  let saleEnd;
+
   const exchangeRate = 50;
   const [owner, user, wallet, usdt, dai] = accounts;
 
@@ -36,17 +38,17 @@ contract('TotemToken', (accounts) => {
       }
     );
 
-    saleStart = new Date();
-    saleStart.setDate(saleStart.getDate() + 1);
-    saleStart = Math.floor(saleStart.getTime() / 1000);
-    // const saleEnd = new Date(saleStart);
-    // saleEnd.setDate(saleStart.getDate() + 30);
+    const res = await web3.eth.getBlock();
+    const now = res.timestamp;
+    saleStart = now + time.duration.days(1).toNumber();
+    saleEnd = saleStart + time.duration.days(30).toNumber();
 
     crowdsale = await TotemCrowdsale.new(
       token.address,
       wallet,
       exchangeRate,
       saleStart,
+      saleEnd,
       [usdc.address, usdt, dai],
       {
         from: owner,
@@ -67,6 +69,8 @@ contract('TotemToken', (accounts) => {
       assert(res[0] === token.address);
       assert(res[1] === wallet);
       assert(res[2].toNumber() === exchangeRate);
+      assert(res[3].toNumber() === saleStart);
+      assert(res[4].toNumber() === saleEnd);
     });
 
     it('should initialize authorized tokens', async () => {
@@ -81,12 +85,22 @@ contract('TotemToken', (accounts) => {
   });
 
   describe('sale', () => {
+    it('should not allow buying before sale start', async () => {
+      await expectRevert(
+        crowdsale.buyToken(usdc.address, '100', {
+          from: user,
+        }),
+        'TotemCrowdsale: sale not started yet'
+      );
+    });
+
+    // should sell Totem token after start
+
     it('should sell Totem token for authorized coin', async () => {
       const value = 100;
       const expectedTokenAmount = value * exchangeRate;
 
       time.increase(time.duration.days(2));
-
       const receipt = await crowdsale.buyToken(usdc.address, value, {
         from: user,
       });
@@ -106,7 +120,7 @@ contract('TotemToken', (accounts) => {
     it('should not accept random token', async () => {
       const randomToken = await deployBasicToken('RDM', user);
 
-      await usdc.approve(randomToken.address, MAX_INT256, { from: user });
+      await randomToken.approve(crowdsale.address, MAX_INT256, { from: user });
       await expectRevert(
         crowdsale.buyToken(randomToken.address, '100', {
           from: user,
@@ -115,43 +129,38 @@ contract('TotemToken', (accounts) => {
       );
     });
 
-    it('should not allow buying before sale start', async () => {
-      let saleStart2 = new Date();
-      saleStart2.setDate(saleStart2.getDate() + 1);
-      saleStart2 = Math.floor(saleStart2.getTime() / 1000);
-      // const saleEnd = new Date(saleStart);
-      // saleEnd.setDate(saleStart.getDate() + 30);
-
-      const crowdsale2 = await TotemCrowdsale.new(
-        token.address,
-        wallet,
-        exchangeRate,
-        saleStart2,
-        [usdc.address, usdt, dai],
-        {
-          from: owner,
-        }
-      );
-
-      await token.transfer(
-        crowdsale2.address,
-        web3.utils.toWei('1000000', 'ether'),
-        { from: owner }
-      );
-      await usdc.approve(crowdsale2.address, MAX_INT256, { from: user });
+    it('should not sell Totem token after end', async () => {
+      time.increase(time.duration.days(40));
       await expectRevert(
-        crowdsale2.buyToken(usdc.address, '100', {
+        crowdsale.buyToken(usdc.address, '100', {
           from: user,
         }),
-        'TotemCrowdsale: sale not started yet'
+        'TotemCrowdsale: sale ended'
       );
     });
-
-    // should buy only from start to finish
-
-    // should not buy if not enough stable coin
-    // should not buy if not enough totem coin
-
-    // should burn remaining token when finalize
   });
+
+  it('should burn remaining tokens after sale end', async () => {
+    const receipt = await crowdsale.finalize({ from: owner });
+    const balance = await token.balanceOf(crowdsale.address);
+    // expectEvent(receipt, 'TokenBought', {
+    //   buyer: user,
+    //   stableCoin: usdc.address,
+    //   value: new BN(value, 10),
+    // });
+    assert(balance.eq(new BN(0, 10)));
+  });
+
+  // should buy only from start to finish
+
+  // should not buy if not enough stable coin
+  // should not buy if not enough totem coin
+
+  // should burn remaining token when finalize
 });
+
+// saleStart = new Date();
+// saleStart.setDate(saleStart.getDate() + 1);
+// saleStart = Math.floor(saleStart.getTime() / 1000);
+// const saleEnd = new Date(saleStart);
+// saleEnd.setDate(saleStart.getDate() + 30);

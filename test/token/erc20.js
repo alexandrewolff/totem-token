@@ -7,11 +7,7 @@ const {
 } = require('@openzeppelin/test-helpers');
 const { ZERO_ADDRESS } = constants;
 
-const {
-  shouldBehaveLikeERC20,
-  shouldBehaveLikeERC20Transfer,
-  shouldBehaveLikeERC20Approve,
-} = require('./erc20_utils');
+const { shouldBehaveLikeERC20 } = require('./erc20_utils');
 
 const TotemToken = artifacts.require('TotemToken');
 

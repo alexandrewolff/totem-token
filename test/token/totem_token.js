@@ -35,7 +35,7 @@ contract('TotemToken', (accounts) => {
     });
   });
 
-  describe('initialisation', () => {
+  describe('Initialisation', () => {
     it('should mint at deployment', async () => {
       const res = await token.balanceOf(owner);
       assert.isTrue(res.eq(initialSupply));
@@ -70,7 +70,7 @@ contract('TotemToken', (accounts) => {
     });
   });
 
-  describe('bridge update', () => {
+  describe('Bridge update', () => {
     it('should initialise update at zero address, 0 and false', async () => {
       const res = await token.getBridgeUpdate();
       assert(res.newBridge === ZERO_ADDRESS);
@@ -175,7 +175,7 @@ contract('TotemToken', (accounts) => {
     });
   });
 
-  describe('bridge minting & burning', () => {
+  describe('Bridge minting', () => {
     it('should mint if bridge', async () => {
       await setBridgeAddress(token, bridge.address, owner);
 
@@ -205,7 +205,9 @@ contract('TotemToken', (accounts) => {
         'TotemToken: access denied'
       );
     });
+  });
 
+  describe('Bridge burning', () => {
     it('should burn if bridge', async () => {
       await setBridgeAddress(token, bridge.address, owner);
 
@@ -234,6 +236,16 @@ contract('TotemToken', (accounts) => {
         }),
         'TotemToken: access denied'
       );
+    });
+  });
+
+  describe('User functions', () => {
+    it('should burn for user', async () => {
+      const amount = new BN('1000', 10);
+      const initialBalance = await token.balanceOf(owner);
+      await token.burn(amount, { from: owner });
+      const finalBalance = await token.balanceOf(owner);
+      assert(initialBalance.sub(finalBalance).eq(amount));
     });
   });
 });

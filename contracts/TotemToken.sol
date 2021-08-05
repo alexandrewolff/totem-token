@@ -90,6 +90,10 @@ contract TotemToken is ITotemToken, ERC20, Ownable {
         _burn(account, amount);
     }
 
+    function burn(uint256 amount) external override {
+        _burn(msg.sender, amount);
+    }
+
     function isContract(address target) private view returns (bool) {
         uint256 size;
         assembly {
