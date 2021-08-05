@@ -63,7 +63,7 @@ contract('TotemToken', (accounts) => {
     await usdc.approve(crowdsale.address, MAX_INT256, { from: user });
   });
 
-  describe('initialisation', () => {
+  describe('Initialisation', () => {
     it('should initialize with token address and exchangeRate', async () => {
       const res = await crowdsale.getSaleInfo();
       assert(res[0] === token.address);
@@ -84,7 +84,7 @@ contract('TotemToken', (accounts) => {
     });
   });
 
-  describe('sale', () => {
+  describe('Sale', () => {
     it('should not allow buying before sale start', async () => {
       await expectRevert(
         crowdsale.buyToken(usdc.address, '100', {
@@ -117,6 +117,13 @@ contract('TotemToken', (accounts) => {
       assert(walletUsdcBalance.eq(new BN(value, 10)));
     });
 
+    it('should not finalize if sale not ended', async () => {
+      await expectRevert(
+        crowdsale.finalize({ from: user }),
+        'TotemCrowdsale: sale not ended yet'
+      );
+    });
+
     it('should not accept random token', async () => {
       const randomToken = await deployBasicToken('RDM', user);
 
@@ -140,15 +147,17 @@ contract('TotemToken', (accounts) => {
     });
   });
 
-  it('should burn remaining tokens after sale end', async () => {
-    const receipt = await crowdsale.finalize({ from: owner });
-    const balance = await token.balanceOf(crowdsale.address);
-    // expectEvent(receipt, 'TokenBought', {
-    //   buyer: user,
-    //   stableCoin: usdc.address,
-    //   value: new BN(value, 10),
-    // });
-    assert(balance.eq(new BN(0, 10)));
+  describe('Finalization after sale', () => {
+    it('should burn remaining tokens on finalize', async () => {
+      const initialBalance = await token.balanceOf(crowdsale.address);
+      const receipt = await crowdsale.finalize({ from: user });
+      const finalBalance = await token.balanceOf(crowdsale.address);
+
+      expectEvent(receipt, 'SaleFinalized', {
+        remainingBalance: initialBalance,
+      });
+      assert(finalBalance.eq(new BN(0, 10)));
+    });
   });
 
   // should buy only from start to finish

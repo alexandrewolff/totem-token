@@ -16,9 +16,6 @@ contract TotemToken is ITotemToken, ERC20, Ownable {
     address private bridge;
     BridgeUpdate private bridgeUpdate;
 
-    event BridgeUpdateLaunched(address indexed newBridge, uint256 endGracePeriod);
-    event BridgeUpdateExecuted(address indexed newBridge);
-
     modifier onlyBridge() {
         require(msg.sender == bridge, "TotemToken: access denied");
         _;

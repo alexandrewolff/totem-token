@@ -10,10 +10,11 @@ contract TotemCrowdsale {
     uint256 private immutable exchangeRate;
     address private immutable wallet;
     uint256 private immutable saleStart;
-    uint256 private saleEnd;
+    uint256 private immutable saleEnd;
     mapping(address => bool) private authorizedTokens;
 
     event TokenBought(address indexed buyer, address indexed stableCoin, uint256 value);
+    event SaleFinalized(uint256 remainingBalance);
 
     constructor(
         address _token,
@@ -49,8 +50,9 @@ contract TotemCrowdsale {
     }
 
     function finalize() external {
+        require(block.timestamp > saleEnd, "TotemCrowdsale: sale not ended yet");
         uint256 balance = IERC20(token).balanceOf(address(this));
-        // emit
+        emit SaleFinalized(balance);
         ITotemToken(token).burn(balance);
     }
 
