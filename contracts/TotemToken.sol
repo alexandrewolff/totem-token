@@ -16,9 +16,8 @@ contract TotemToken is ITotemToken, ERC20, Ownable {
     address private bridge;
     BridgeUpdate private bridgeUpdate;
 
-    event BridgeUpdateLaunched(address newBridge, uint256 endGracePeriod);
-
-    event BridgeUpdateExecuted(address newBridge);
+    event BridgeUpdateLaunched(address indexed newBridge, uint256 endGracePeriod);
+    event BridgeUpdateExecuted(address indexed newBridge);
 
     modifier onlyBridge() {
         require(msg.sender == bridge, "TotemToken: access denied");
@@ -42,14 +41,8 @@ contract TotemToken is ITotemToken, ERC20, Ownable {
     }
 
     function launchBridgeUpdate(address newBridge) external onlyOwner {
-        require(
-            !bridgeUpdate.hasToBeExecuted,
-            "TotemToken: current update has to be executed"
-        );
-        require(
-            isContract(newBridge),
-            "TotemToken: address provided is not a contract"
-        );
+        require(!bridgeUpdate.hasToBeExecuted, "TotemToken: current update has to be executed");
+        require(isContract(newBridge), "TotemToken: address provided is not a contract");
 
         uint256 endGracePeriod = block.timestamp + 604800; // 604800 = 7 days
 
@@ -59,14 +52,8 @@ contract TotemToken is ITotemToken, ERC20, Ownable {
     }
 
     function executeBridgeUpdate() external onlyOwner {
-        require(
-            bridgeUpdate.endGracePeriod <= block.timestamp,
-            "TotemToken: grace period has not finished"
-        );
-        require(
-            bridgeUpdate.hasToBeExecuted,
-            "TotemToken: update already executed"
-        );
+        require(bridgeUpdate.endGracePeriod <= block.timestamp, "TotemToken: grace period has not finished");
+        require(bridgeUpdate.hasToBeExecuted, "TotemToken: update already executed");
 
         bridgeUpdate.hasToBeExecuted = false;
         bridge = bridgeUpdate.newBridge;
@@ -74,19 +61,11 @@ contract TotemToken is ITotemToken, ERC20, Ownable {
         emit BridgeUpdateExecuted(bridgeUpdate.newBridge);
     }
 
-    function mintFromBridge(address account, uint256 amount)
-        external
-        override
-        onlyBridge
-    {
+    function mintFromBridge(address account, uint256 amount) external override onlyBridge {
         _mint(account, amount);
     }
 
-    function burnFromBridge(address account, uint256 amount)
-        external
-        override
-        onlyBridge
-    {
+    function burnFromBridge(address account, uint256 amount) external override onlyBridge {
         _burn(account, amount);
     }
 

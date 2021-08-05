@@ -13,7 +13,7 @@ contract TotemCrowdsale {
     uint256 private saleEnd;
     mapping(address => bool) private authorizedTokens;
 
-    event TokenBought(address buyer, address stableCoin, uint256 value);
+    event TokenBought(address indexed buyer, address indexed stableCoin, uint256 value);
 
     constructor(
         address _token,
@@ -35,14 +35,8 @@ contract TotemCrowdsale {
     }
 
     function buyToken(address stableCoin, uint256 value) external {
-        require(
-            authorizedTokens[stableCoin] == true,
-            "TotemCrowdsale: unauthorized token"
-        );
-        require(
-            block.timestamp >= saleStart,
-            "TotemCrowdsale: sale not started yet"
-        );
+        require(authorizedTokens[stableCoin] == true, "TotemCrowdsale: unauthorized token");
+        require(block.timestamp >= saleStart, "TotemCrowdsale: sale not started yet");
 
         require(block.timestamp <= saleEnd, "TotemCrowdsale: sale ended");
 
