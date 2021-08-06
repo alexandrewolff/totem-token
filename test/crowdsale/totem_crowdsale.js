@@ -9,6 +9,7 @@ const {
   expectEvent,
   time,
 } = require('@openzeppelin/test-helpers');
+const { ZERO_ADDRESS } = require('@openzeppelin/test-helpers/src/constants');
 const { web3 } = require('@openzeppelin/test-helpers/src/setup');
 const { MAX_INT256 } = constants;
 
@@ -23,12 +24,13 @@ contract('TotemToken', (accounts) => {
   let usdc;
   let saleStart;
   let saleEnd;
+  let referralValue;
 
   const exchangeRate = 50;
-  const [owner, user, wallet, usdt, dai] = accounts;
+  const [owner, user1, user2, wallet, usdt, dai] = accounts;
 
   beforeEach(async () => {
-    usdc = await deployBasicToken('USDC', user);
+    usdc = await deployBasicToken('USDC', user1);
     token = await TotemToken.new(
       'Test Token',
       'TST',
@@ -43,12 +45,15 @@ contract('TotemToken', (accounts) => {
     saleStart = now + time.duration.days(1).toNumber();
     saleEnd = saleStart + time.duration.days(30).toNumber();
 
+    referralValue = 2;
+
     crowdsale = await TotemCrowdsale.new(
       token.address,
       wallet,
       exchangeRate,
       saleStart,
       saleEnd,
+      referralValue,
       [usdc.address, usdt, dai],
       {
         from: owner,
@@ -60,7 +65,7 @@ contract('TotemToken', (accounts) => {
       web3.utils.toWei('1000000', 'ether'),
       { from: owner }
     );
-    await usdc.approve(crowdsale.address, MAX_INT256, { from: user });
+    await usdc.approve(crowdsale.address, MAX_INT256, { from: user1 });
   });
 
   describe('Initialisation', () => {
@@ -84,79 +89,139 @@ contract('TotemToken', (accounts) => {
     });
   });
 
-  describe('Sale', () => {
-    it('should not allow buying before sale start', async () => {
-      await expectRevert(
-        crowdsale.buyToken(usdc.address, '100', {
-          from: user,
-        }),
-        'TotemCrowdsale: sale not started yet'
-      );
-    });
-
-    // should sell Totem token after start
-
-    it('should sell Totem token for authorized coin', async () => {
-      const value = 100;
-      const expectedTokenAmount = value * exchangeRate;
-
-      time.increase(time.duration.days(2));
-      const receipt = await crowdsale.buyToken(usdc.address, value, {
-        from: user,
+  describe('Before sale', () => {
+    describe('Sale', () => {
+      it('should not allow buying before sale start', async () => {
+        await expectRevert(
+          crowdsale.buyToken(usdc.address, '100', ZERO_ADDRESS, {
+            from: user1,
+          }),
+          'TotemCrowdsale: sale not started yet'
+        );
       });
-
-      expectEvent(receipt, 'TokenBought', {
-        buyer: user,
-        stableCoin: usdc.address,
-        value: new BN(value, 10),
-      });
-
-      const userTotemBalance = await token.balanceOf(user);
-      const walletUsdcBalance = await usdc.balanceOf(wallet);
-      assert(userTotemBalance.eq(new BN(expectedTokenAmount, 10)));
-      assert(walletUsdcBalance.eq(new BN(value, 10)));
-    });
-
-    it('should not finalize if sale not ended', async () => {
-      await expectRevert(
-        crowdsale.finalize({ from: user }),
-        'TotemCrowdsale: sale not ended yet'
-      );
-    });
-
-    it('should not accept random token', async () => {
-      const randomToken = await deployBasicToken('RDM', user);
-
-      await randomToken.approve(crowdsale.address, MAX_INT256, { from: user });
-      await expectRevert(
-        crowdsale.buyToken(randomToken.address, '100', {
-          from: user,
-        }),
-        'TotemCrowdsale: unauthorized token'
-      );
-    });
-
-    it('should not sell Totem token after end', async () => {
-      time.increase(time.duration.days(40));
-      await expectRevert(
-        crowdsale.buyToken(usdc.address, '100', {
-          from: user,
-        }),
-        'TotemCrowdsale: sale ended'
-      );
     });
   });
 
-  describe('Finalization after sale', () => {
-    it('should burn remaining tokens on finalize', async () => {
-      const initialBalance = await token.balanceOf(crowdsale.address);
-      const receipt = await crowdsale.finalize({ from: user });
-      const finalBalance = await token.balanceOf(crowdsale.address);
+  describe('During sale', () => {
+    describe('Sale', () => {
+      // should sell Totem token after start
 
-      expectEvent(receipt, 'SaleFinalized', {
-        remainingBalance: initialBalance,
+      it('should sell Totem token for authorized coin', async () => {
+        const value = 100;
+        const expectedTokenAmount = value * exchangeRate;
+
+        time.increase(time.duration.days(2));
+        const receipt = await crowdsale.buyToken(
+          usdc.address,
+          value,
+          ZERO_ADDRESS,
+          {
+            from: user1,
+          }
+        );
+
+        expectEvent(receipt, 'TokenBought', {
+          buyer: user1,
+          stableCoin: usdc.address,
+          value: new BN(value, 10),
+        });
+
+        const userTotemBalance = await token.balanceOf(user1);
+        const walletUsdcBalance = await usdc.balanceOf(wallet);
+        assert(userTotemBalance.eq(new BN(expectedTokenAmount, 10)));
+        assert(walletUsdcBalance.eq(new BN(value, 10)));
       });
-      assert(finalBalance.eq(new BN(0, 10)));
+
+      it('should not accept random token', async () => {
+        const randomToken = await deployBasicToken('RDM', user1);
+
+        await randomToken.approve(crowdsale.address, MAX_INT256, {
+          from: user1,
+        });
+        await expectRevert(
+          crowdsale.buyToken(randomToken.address, '100', ZERO_ADDRESS, {
+            from: user1,
+          }),
+          'TotemCrowdsale: unauthorized token'
+        );
+      });
+    });
+
+    describe('Referral', () => {
+      it('should increase referral at sell', async () => {
+        const value = 100;
+        const expectedTokenAmount = value * exchangeRate;
+        const expectedReferralAmount = new BN(
+          (expectedTokenAmount * referralValue) / 100,
+          10
+        );
+        const receipt = await crowdsale.buyToken(usdc.address, value, user2, {
+          from: user1,
+        });
+        const referralAccrued = await crowdsale.getReferralAccrued(user2);
+
+        expectEvent(receipt, 'TokenBought', {
+          referral: user2,
+        });
+        assert(referralAccrued.eq(expectedReferralAmount));
+      });
+
+      it('should not increase referral if zero address', async () => {
+        const receipt = await crowdsale.buyToken(
+          usdc.address,
+          100,
+          ZERO_ADDRESS,
+          {
+            from: user1,
+          }
+        );
+        const referralAccrued = await crowdsale.getReferralAccrued(
+          ZERO_ADDRESS
+        );
+
+        expectEvent(receipt, 'TokenBought', {
+          referral: ZERO_ADDRESS,
+        });
+        assert(referralAccrued.eq(new BN(0, 10)));
+      });
+
+      it('should should withdraw referral amount', async () => {});
+    });
+
+    describe('Finalization', () => {
+      it('should not finalize if sale not ended', async () => {
+        await expectRevert(
+          crowdsale.finalizeSale({ from: user1 }),
+          'TotemCrowdsale: sale not ended yet'
+        );
+      });
+    });
+  });
+
+  describe('After sale', () => {
+    describe('Sale', () => {
+      it('should not sell Totem token after end', async () => {
+        time.increase(time.duration.days(40));
+        await expectRevert(
+          crowdsale.buyToken(usdc.address, '100', ZERO_ADDRESS, {
+            from: user1,
+          }),
+          'TotemCrowdsale: sale ended'
+        );
+      });
+    });
+
+    describe('Finalization', () => {
+      it('should burn remaining tokens on finalize', async () => {
+        const initialBalance = await token.balanceOf(crowdsale.address);
+        const receipt = await crowdsale.finalizeSale({ from: user1 });
+        const finalBalance = await token.balanceOf(crowdsale.address);
+
+        expectEvent(receipt, 'SaleFinalized', {
+          remainingBalance: initialBalance,
+        });
+        assert(finalBalance.eq(new BN(0, 10)));
+      });
     });
   });
 
