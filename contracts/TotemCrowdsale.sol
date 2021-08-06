@@ -76,10 +76,11 @@ contract TotemCrowdsale {
             address,
             uint256,
             uint256,
+            uint256,
             uint256
         )
     {
-        return (token, wallet, exchangeRate, saleStart, saleEnd);
+        return (token, wallet, exchangeRate, saleStart, saleEnd, referralValue);
     }
 
     function getReferralAccrued(address account) external view returns (uint256) {

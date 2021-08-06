@@ -69,13 +69,14 @@ contract('TotemToken', (accounts) => {
   });
 
   describe('Initialisation', () => {
-    it('should initialize with token address and exchangeRate', async () => {
+    it.only('should initialize with token address and exchangeRate', async () => {
       const res = await crowdsale.getSaleInfo();
       assert(res[0] === token.address);
       assert(res[1] === wallet);
       assert(res[2].toNumber() === exchangeRate);
       assert(res[3].toNumber() === saleStart);
       assert(res[4].toNumber() === saleEnd);
+      assert(res[5].toNumber() === referralValue);
     });
 
     it('should initialize authorized tokens', async () => {
