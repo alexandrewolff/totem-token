@@ -14,7 +14,6 @@ contract TotemCrowdsale {
     uint256 private immutable referralValue;
 
     mapping(address => bool) private authorizedTokens;
-    mapping(address => uint256) private userToReferralAccrued;
 
     event TokenBought(address indexed buyer, address indexed stableCoin, uint256 value, address indexed referral);
     event SaleFinalized(uint256 remainingBalance);
@@ -47,18 +46,17 @@ contract TotemCrowdsale {
     ) external {
         require(authorizedTokens[stableCoin] == true, "TotemCrowdsale: unauthorized token");
         require(block.timestamp >= saleStart, "TotemCrowdsale: sale not started yet");
-
         require(block.timestamp <= saleEnd, "TotemCrowdsale: sale ended");
 
         uint256 amountToSend = value * exchangeRate;
-        if (referral != address(0)) {
-            userToReferralAccrued[referral] += (amountToSend * referralValue) / 100;
-        }
 
         emit TokenBought(msg.sender, stableCoin, value, referral);
 
         IERC20(stableCoin).transferFrom(msg.sender, wallet, value);
         IERC20(token).transfer(msg.sender, amountToSend);
+        if (referral != address(0)) {
+            IERC20(token).transfer(referral, (amountToSend * referralValue) / 100);
+        }
     }
 
     function finalizeSale() external {
@@ -81,10 +79,6 @@ contract TotemCrowdsale {
         )
     {
         return (token, wallet, exchangeRate, saleStart, saleEnd, referralValue);
-    }
-
-    function getReferralAccrued(address account) external view returns (uint256) {
-        return userToReferralAccrued[account];
     }
 
     function isTokenAuthorized(address _token) external view returns (bool) {
