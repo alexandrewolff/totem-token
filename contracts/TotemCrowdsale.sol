@@ -3,9 +3,12 @@
 pragma solidity 0.8.6;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./ITotemToken.sol";
 
 contract TotemCrowdsale {
+    using SafeERC20 for IERC20;
+
     address private immutable token;
     address private immutable wallet;
     uint256 private immutable saleStart;
@@ -45,7 +48,7 @@ contract TotemCrowdsale {
         uint256 value,
         address referral
     ) external {
-        require(authorizedTokens[stableCoin] == true, "TotemCrowdsale: unauthorized token");
+        require(authorizedTokens[stableCoin], "TotemCrowdsale: unauthorized token");
         require(block.timestamp >= saleStart, "TotemCrowdsale: sale not started yet");
         require(block.timestamp <= saleEnd, "TotemCrowdsale: sale ended");
         require(value > 0, "TotemCrowdsale: value can't be zero");
@@ -59,10 +62,10 @@ contract TotemCrowdsale {
 
         emit TokenBought(msg.sender, stableCoin, value, referral);
 
-        IERC20(stableCoin).transferFrom(msg.sender, wallet, value);
-        IERC20(token).transfer(msg.sender, amountToSend);
+        IERC20(stableCoin).safeTransferFrom(msg.sender, wallet, value);
+        IERC20(token).transfer(msg.sender, amountToSend); // considers that token reverts if transfer not successfull
         if (referral != address(0)) {
-            IERC20(token).transfer(referral, (amountToSend * referralPercentage) / 100);
+            IERC20(token).transfer(referral, (amountToSend * referralPercentage) / 100); // considers that token reverts if transfer not successfull
         }
     }
 

@@ -48,10 +48,7 @@ module.exports = {
     },
     bsc_test: {
       provider: () =>
-        new HDWalletProvider(
-          mnemonic,
-          'https://data-seed-prebsc-1-s3.binance.org:8545'
-        ),
+        new HDWalletProvider(mnemonic, process.env.BSC_TEST_ENDPOINT),
       network_id: 97,
     },
     // Another network with more advanced options...
