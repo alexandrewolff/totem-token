@@ -1,3 +1,7 @@
+# Totem Token
+
+Truffle version: 5.4.2
+
 ## Install packages
 
 ```
@@ -7,7 +11,7 @@ npm i
 ## Run tests
 
 ```
-npm test
+truffle test
 ```
 
 ## Gas consumption report
@@ -17,5 +21,15 @@ Uncomment the reporter line in the truffle-config.js file to get report on gas c
 ## Get test coverage
 
 ```
-npm run coverage
+truffle run coverage
+```
+
+## Verify contracts
+
+```
+truffle run verify <CONTRACT NAME> --network <NETWORK NAME>
+```
+
+```
+./scripts/verify.sh
 ```
