@@ -15,9 +15,10 @@ contract TotemCrowdsale {
     uint256 private immutable saleEnd;
     uint256 private immutable exchangeRate;
     uint256 private immutable referralPercentage;
+    uint256 private soldAmount;
 
     mapping(address => bool) private authorizedTokens;
-    mapping(address => bool) private buyers;
+    mapping(address => uint256) private userToClaimableAmount;
 
     event TokenBought(address indexed buyer, address indexed stableCoin, uint256 value, address indexed referral);
     event SaleFinalized(uint256 remainingBalance);
@@ -51,23 +52,32 @@ contract TotemCrowdsale {
         require(authorizedTokens[stableCoin], "TotemCrowdsale: unauthorized token");
         require(block.timestamp >= saleStart, "TotemCrowdsale: sale not started yet");
         require(block.timestamp <= saleEnd, "TotemCrowdsale: sale ended");
-        require(value > 0, "TotemCrowdsale: value can't be zero");
-        require(referral == address(0) || buyers[referral], "TotemCrowdsale: invalid referral address");
+        require(
+            referral == address(0) || (msg.sender != referral && userToClaimableAmount[referral] > 0),
+            "TotemCrowdsale: invalid referral address"
+        );
 
-        if (!buyers[msg.sender]) {
-            buyers[msg.sender] = true;
+        uint256 tokensAvailable = IERC20(token).balanceOf(address(this));
+        uint256 claimableAmount = value * exchangeRate;
+        require(tokensAvailable >= soldAmount + claimableAmount, "TotemCrowdsale: not enough tokens available");
+        userToClaimableAmount[msg.sender] += claimableAmount;
+        soldAmount += claimableAmount;
+
+        if (referral != address(0)) {
+            uint256 referralReward = (claimableAmount * referralPercentage) / 100;
+            require(tokensAvailable >= soldAmount + referralReward, "TotemCrowdsale: not enough tokens available");
+            userToClaimableAmount[referral] += referralReward;
+            soldAmount += referralReward;
         }
-
-        uint256 amountToSend = value * exchangeRate;
 
         emit TokenBought(msg.sender, stableCoin, value, referral);
 
         IERC20(stableCoin).safeTransferFrom(msg.sender, wallet, value);
-        IERC20(token).transfer(msg.sender, amountToSend); // considers that token reverts if transfer not successfull
-        if (referral != address(0)) {
-            IERC20(token).transfer(referral, (amountToSend * referralPercentage) / 100); // considers that token reverts if transfer not successfull
-        }
     }
+
+    // function withdrawToken() external {
+    // IERC20(token).transfer(msg.sender, amountToSend); // considers that token reverts if transfer not successfull
+    // }
 
     function finalizeSale() external {
         require(block.timestamp > saleEnd, "TotemCrowdsale: sale not ended yet");
@@ -89,6 +99,10 @@ contract TotemCrowdsale {
         )
     {
         return (token, wallet, saleStart, saleEnd, exchangeRate, referralPercentage);
+    }
+
+    function getClaimableAmount(address account) external view returns (uint256) {
+        return userToClaimableAmount[account];
     }
 
     function isTokenAuthorized(address _token) external view returns (bool) {

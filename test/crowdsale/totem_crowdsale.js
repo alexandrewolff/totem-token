@@ -27,7 +27,7 @@ contract('TotemToken', (accounts) => {
   const referralPercentage = new BN(2, 10);
   const totalSupply = new BN(web3.utils.toWei('1000000', 'ether'), 10);
 
-  const exchangeRate = 50;
+  const exchangeRate = new BN(50, 10);
   const [owner, user1, user2, wallet, usdt, dai] = accounts;
 
   beforeEach(async () => {
@@ -93,15 +93,16 @@ contract('TotemToken', (accounts) => {
     });
   });
 
-  describe('During sale', () => {
+  describe.only('During sale', () => {
     describe('Sale', () => {
-      // should sell Totem token after start
+      // test sold amount value
 
       it('should sell Totem token', async () => {
         const value = 100;
         const expectedTokenAmount = value * exchangeRate;
 
         await time.increase(time.duration.days(2));
+
         const receipt = await crowdsale.buyToken(
           usdc.address,
           value,
@@ -117,34 +118,27 @@ contract('TotemToken', (accounts) => {
           value: new BN(value, 10),
         });
 
-        const userTotemBalance = await token.balanceOf(user1);
+        const claimableAmount = await crowdsale.getClaimableAmount(user1);
         const walletUsdcBalance = await usdc.balanceOf(wallet);
-        assert(userTotemBalance.eq(new BN(expectedTokenAmount, 10)));
-        assert(walletUsdcBalance.eq(new BN(value, 10)));
-      });
 
-      it('should not sell for zero as value', async () => {
-        await expectRevert(
-          crowdsale.buyToken(usdc.address, 0, ZERO_ADDRESS, {
-            from: user1,
-          }),
-          "TotemCrowdsale: value can't be zero"
-        );
+        assert(claimableAmount.eq(new BN(expectedTokenAmount, 10)));
+        assert(walletUsdcBalance.eq(new BN(value, 10)));
       });
 
       it('should not sell if not enough supply', async () => {
         const crowdsaleBalance = await token.balanceOf(crowdsale.address);
+        const crowdsaleBalanceValue = crowdsaleBalance.div(exchangeRate);
 
         await expectRevert(
           crowdsale.buyToken(
             usdc.address,
-            crowdsaleBalance.add(new BN(1, 10)),
+            crowdsaleBalanceValue.add(new BN(1, 10)),
             ZERO_ADDRESS,
             {
               from: user1,
             }
           ),
-          'ERC20: transfer amount exceeds balance'
+          'TotemCrowdsale: not enough tokens available'
         );
       });
 
@@ -163,24 +157,23 @@ contract('TotemToken', (accounts) => {
       });
 
       it('should sell all tokens left', async () => {
-        const val = totalSupply.div(new BN(exchangeRate, 10));
-        await crowdsale.buyToken(usdc.address, val, ZERO_ADDRESS, {
+        const totalSupplyValue = totalSupply.div(new BN(exchangeRate, 10));
+        await crowdsale.buyToken(usdc.address, totalSupplyValue, ZERO_ADDRESS, {
           from: user1,
         });
-        const balance = await token.balanceOf(crowdsale.address);
+        const claimableAmount = await crowdsale.getClaimableAmount(user1);
 
-        assert(balance.eq(new BN(0, 10)));
+        assert(claimableAmount.eq(totalSupply));
       });
     });
 
     describe('Referral', () => {
-      it('should send referral', async () => {
-        const value = 100;
-        const expectedTokenAmount = value * exchangeRate;
-        const expectedReferralAmount = new BN(
-          (expectedTokenAmount * referralPercentage) / 100,
-          10
-        );
+      it('should apply referral reward', async () => {
+        const value = new BN(100, 10);
+        const expectedTokenAmount = value.mul(exchangeRate);
+        const expectedReferralAmount = expectedTokenAmount
+          .mul(referralPercentage)
+          .div(new BN(100, 10));
 
         // Add user2 to buyers
         await usdc.transfer(user2, 1, { from: user1 });
@@ -188,17 +181,23 @@ contract('TotemToken', (accounts) => {
         await crowdsale.buyToken(usdc.address, 1, ZERO_ADDRESS, {
           from: user2,
         });
-        const initialBalance = await token.balanceOf(user2);
 
+        const initialClaimableAmount = await crowdsale.getClaimableAmount(
+          user2
+        );
         const receipt = await crowdsale.buyToken(usdc.address, value, user2, {
           from: user1,
         });
-        const finalBalance = await token.balanceOf(user2);
+        const finalClaimableAmount = await crowdsale.getClaimableAmount(user2);
 
         expectEvent(receipt, 'TokenBought', {
           referral: user2,
         });
-        assert(finalBalance.sub(initialBalance).eq(expectedReferralAmount));
+        assert(
+          finalClaimableAmount
+            .sub(initialClaimableAmount)
+            .eq(expectedReferralAmount)
+        );
       });
 
       it('should not sell if not enough supply for referral', async () => {
@@ -210,19 +209,28 @@ contract('TotemToken', (accounts) => {
         });
 
         const crowdsaleBalance = await token.balanceOf(crowdsale.address);
-        const supplyLeft = crowdsaleBalance.div(new BN(exchangeRate, 10));
+        const supplyLeftValue = crowdsaleBalance.div(new BN(exchangeRate, 10));
 
         await expectRevert(
-          crowdsale.buyToken(usdc.address, supplyLeft, user2, {
+          crowdsale.buyToken(usdc.address, supplyLeftValue, user2, {
             from: user1,
           }),
-          'ERC20: transfer amount exceeds balance'
+          'TotemCrowdsale: not enough tokens available'
         );
       });
 
       it('should not accept address different from buyers and zero for referral', async () => {
         await expectRevert(
           crowdsale.buyToken(usdc.address, 100, user2, {
+            from: user1,
+          }),
+          'TotemCrowdsale: invalid referral address'
+        );
+      });
+
+      it('should not allow referral to be buyer', async () => {
+        await expectRevert(
+          crowdsale.buyToken(usdc.address, 100, user1, {
             from: user1,
           }),
           'TotemCrowdsale: invalid referral address'
