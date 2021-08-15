@@ -61,12 +61,13 @@ contract('TotemToken', (accounts) => {
   describe('Initialisation', () => {
     it('should initialize with token address and exchangeRate', async () => {
       const res = await crowdsale.getSaleInfo();
-      assert(res[0] === token.address);
-      assert(res[1] === wallet);
-      assert(res[2].toNumber() === saleStart);
-      assert(res[3].toNumber() === saleEnd);
-      assert(res[4].toNumber() === exchangeRate);
-      assert(res[5].eq(referralPercentage));
+      assert(res.token === token.address);
+      assert(res.wallet === wallet);
+      assert(parseInt(res.saleStart) === saleStart);
+      assert(parseInt(res.saleEnd) === saleEnd);
+      assert(new BN(res.exchangeRate, 10).eq(exchangeRate));
+      assert(new BN(res.referralPercentage, 10).eq(referralPercentage));
+      assert(parseInt(res.soldAmount) === 0);
     });
 
     it('should initialize authorized tokens', async () => {
@@ -93,13 +94,11 @@ contract('TotemToken', (accounts) => {
     });
   });
 
-  describe.only('During sale', () => {
+  describe('During sale', () => {
     describe('Sale', () => {
-      // test sold amount value
-
       it('should sell Totem token', async () => {
-        const value = 100;
-        const expectedTokenAmount = value * exchangeRate;
+        const value = new BN(100, 10);
+        const expectedTokenAmount = value.mul(exchangeRate);
 
         await time.increase(time.duration.days(2));
 
@@ -112,17 +111,27 @@ contract('TotemToken', (accounts) => {
           }
         );
 
+        const claimableAmount = await crowdsale.getClaimableAmount(user1);
+        let res = await crowdsale.getSaleInfo();
+        const walletUsdcBalance = await usdc.balanceOf(wallet);
+
         expectEvent(receipt, 'TokenBought', {
           buyer: user1,
           stableCoin: usdc.address,
           value: new BN(value, 10),
         });
+        assert(claimableAmount.eq(expectedTokenAmount));
+        assert(new BN(res.soldAmount, 10).eq(expectedTokenAmount));
+        assert(walletUsdcBalance.eq(value));
 
-        const claimableAmount = await crowdsale.getClaimableAmount(user1);
-        const walletUsdcBalance = await usdc.balanceOf(wallet);
+        await crowdsale.buyToken(usdc.address, value, ZERO_ADDRESS, {
+          from: user1,
+        });
+        res = await crowdsale.getSaleInfo();
 
-        assert(claimableAmount.eq(new BN(expectedTokenAmount, 10)));
-        assert(walletUsdcBalance.eq(new BN(value, 10)));
+        assert(
+          new BN(res.soldAmount, 10).eq(expectedTokenAmount.mul(new BN(2, 10)))
+        );
       });
 
       it('should not sell if not enough supply', async () => {
@@ -176,9 +185,11 @@ contract('TotemToken', (accounts) => {
           .div(new BN(100, 10));
 
         // Add user2 to buyers
+        const user2Value = new BN(1, 10);
+        const expectedUsers2Tokens = user2Value.mul(exchangeRate);
         await usdc.transfer(user2, 1, { from: user1 });
         await usdc.approve(crowdsale.address, MAX_INT256, { from: user2 });
-        await crowdsale.buyToken(usdc.address, 1, ZERO_ADDRESS, {
+        await crowdsale.buyToken(usdc.address, user2Value, ZERO_ADDRESS, {
           from: user2,
         });
 
@@ -189,6 +200,7 @@ contract('TotemToken', (accounts) => {
           from: user1,
         });
         const finalClaimableAmount = await crowdsale.getClaimableAmount(user2);
+        const res = await crowdsale.getSaleInfo();
 
         expectEvent(receipt, 'TokenBought', {
           referral: user2,
@@ -197,6 +209,13 @@ contract('TotemToken', (accounts) => {
           finalClaimableAmount
             .sub(initialClaimableAmount)
             .eq(expectedReferralAmount)
+        );
+        assert(
+          new BN(res.soldAmount, 10).eq(
+            expectedTokenAmount
+              .add(expectedReferralAmount)
+              .add(expectedUsers2Tokens)
+          )
         );
       });
 
@@ -249,6 +268,10 @@ contract('TotemToken', (accounts) => {
   });
 
   describe('After sale', () => {
+    // beforeEach(async () => {
+
+    // })
+
     describe('Sale', () => {
       it('should not sell Totem token after end', async () => {
         await time.increase(time.duration.days(40));

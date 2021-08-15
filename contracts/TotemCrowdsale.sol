@@ -1,10 +1,20 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.6;
+pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./ITotemToken.sol";
+
+struct SaleInfo {
+    address token;
+    address wallet;
+    uint256 saleStart;
+    uint256 saleEnd;
+    uint256 exchangeRate;
+    uint256 referralPercentage;
+    uint256 soldAmount;
+}
 
 contract TotemCrowdsale {
     using SafeERC20 for IERC20;
@@ -86,19 +96,8 @@ contract TotemCrowdsale {
         ITotemToken(token).burn(balance);
     }
 
-    function getSaleInfo()
-        external
-        view
-        returns (
-            address,
-            address,
-            uint256,
-            uint256,
-            uint256,
-            uint256
-        )
-    {
-        return (token, wallet, saleStart, saleEnd, exchangeRate, referralPercentage);
+    function getSaleInfo() external view returns (SaleInfo memory) {
+        return SaleInfo(token, wallet, saleStart, saleEnd, exchangeRate, referralPercentage, soldAmount);
     }
 
     function getClaimableAmount(address account) external view returns (uint256) {
