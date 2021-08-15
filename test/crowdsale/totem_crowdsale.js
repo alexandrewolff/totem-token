@@ -95,12 +95,14 @@ contract('TotemToken', (accounts) => {
   });
 
   describe('During sale', () => {
+    before(async () => {
+      await time.increase(time.duration.days(2));
+    });
+
     describe('Sale', () => {
       it('should sell Totem token', async () => {
         const value = new BN(100, 10);
         const expectedTokenAmount = value.mul(exchangeRate);
-
-        await time.increase(time.duration.days(2));
 
         const receipt = await crowdsale.buyToken(
           usdc.address,
@@ -268,13 +270,12 @@ contract('TotemToken', (accounts) => {
   });
 
   describe('After sale', () => {
-    // beforeEach(async () => {
-
-    // })
+    before(async () => {
+      await time.increase(time.duration.days(40));
+    });
 
     describe('Sale', () => {
       it('should not sell Totem token after end', async () => {
-        await time.increase(time.duration.days(40));
         await expectRevert(
           crowdsale.buyToken(usdc.address, '100', ZERO_ADDRESS, {
             from: user1,
