@@ -146,6 +146,20 @@ contract('Totem Crowdsale', (accounts) => {
         );
       });
 
+      it.only('should not sell if under minimum buy value', async () => {
+        await expectRevert(
+          crowdsale.buyToken(
+            usdc.address,
+            minBuyValue.div(new BN(2, 10)),
+            ZERO_ADDRESS,
+            {
+              from: user1,
+            }
+          ),
+          'TotemCrowdsale: under minimum buy value'
+        );
+      });
+
       it('should not sell if not enough supply', async () => {
         const crowdsaleBalance = await token.balanceOf(crowdsale.address);
         const crowdsaleBalanceValue = crowdsaleBalance.div(exchangeRate);

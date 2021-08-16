@@ -82,6 +82,7 @@ contract TotemCrowdsale {
         require(authorizedTokens[stableCoin], "TotemCrowdsale: unauthorized token");
         require(block.timestamp >= saleStart, "TotemCrowdsale: sale not started yet");
         require(block.timestamp <= saleEnd, "TotemCrowdsale: sale ended");
+        require(value >= minBuyValue, "TotemCrowdsale: under minimum buy value");
         require(
             referral == address(0) ||
                 (msg.sender != referral && userToClaimableAmount[referral] > 0),
