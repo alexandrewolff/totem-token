@@ -18,16 +18,17 @@ const deployBasicToken = async (symbol, initialHolder) =>
     from: initialHolder,
   });
 
-contract('TotemToken', (accounts) => {
+contract('Totem Crowdsale', (accounts) => {
   let crowdsale;
   let token;
   let usdc;
   let saleStart;
   let saleEnd;
+  const minBuyValue = new BN(web3.utils.toWei('300', 'ether'), 10);
+  const exchangeRate = new BN(50, 10);
   const referralPercentage = new BN(2, 10);
   const totalSupply = new BN(web3.utils.toWei('1000000', 'ether'), 10);
 
-  const exchangeRate = new BN(50, 10);
   const [owner, user1, user2, wallet, usdt, dai] = accounts;
 
   beforeEach(async () => {
@@ -46,6 +47,7 @@ contract('TotemToken', (accounts) => {
       wallet,
       saleStart,
       saleEnd,
+      minBuyValue,
       exchangeRate,
       referralPercentage,
       [usdc.address, usdt, dai],
@@ -65,6 +67,7 @@ contract('TotemToken', (accounts) => {
       assert(res.wallet === wallet);
       assert(parseInt(res.saleStart) === saleStart);
       assert(parseInt(res.saleEnd) === saleEnd);
+      assert(new BN(res.minBuyValue, 10).eq(minBuyValue));
       assert(new BN(res.exchangeRate, 10).eq(exchangeRate));
       assert(new BN(res.referralPercentage, 10).eq(referralPercentage));
       assert(parseInt(res.soldAmount) === 0);

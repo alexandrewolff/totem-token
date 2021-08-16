@@ -11,6 +11,7 @@ struct SaleInfo {
     address wallet;
     uint256 saleStart;
     uint256 saleEnd;
+    uint256 minBuyValue;
     uint256 exchangeRate;
     uint256 referralPercentage;
     uint256 soldAmount;
@@ -23,6 +24,7 @@ contract TotemCrowdsale {
     address private immutable wallet;
     uint256 private immutable saleStart;
     uint256 private immutable saleEnd;
+    uint256 private immutable minBuyValue;
     uint256 private immutable exchangeRate;
     uint256 private immutable referralPercentage;
     uint256 private soldAmount;
@@ -38,6 +40,7 @@ contract TotemCrowdsale {
         address _wallet,
         uint256 _saleStart,
         uint256 _saleEnd,
+        uint256 _minBuyValue,
         uint256 _exchangeRate,
         uint256 _referralPercentage,
         address[] memory _authorizedTokens
@@ -46,6 +49,7 @@ contract TotemCrowdsale {
         wallet = _wallet;
         saleStart = _saleStart;
         saleEnd = _saleEnd;
+        minBuyValue = _minBuyValue;
         exchangeRate = _exchangeRate;
         referralPercentage = _referralPercentage;
 
@@ -97,7 +101,7 @@ contract TotemCrowdsale {
     }
 
     function getSaleInfo() external view returns (SaleInfo memory) {
-        return SaleInfo(token, wallet, saleStart, saleEnd, exchangeRate, referralPercentage, soldAmount);
+        return SaleInfo(token, wallet, saleStart, saleEnd, minBuyValue, exchangeRate, referralPercentage, soldAmount);
     }
 
     function getClaimableAmount(address account) external view returns (uint256) {
