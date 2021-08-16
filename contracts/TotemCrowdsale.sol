@@ -6,17 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./ITotemToken.sol";
 
-struct SaleInfo {
-    address token;
-    address wallet;
-    uint256 saleStart;
-    uint256 saleEnd;
-    uint256 minBuyValue;
-    uint256 exchangeRate;
-    uint256 referralPercentage;
-    uint256 soldAmount;
-}
-
 contract TotemCrowdsale {
     using SafeERC20 for IERC20;
 
@@ -27,12 +16,28 @@ contract TotemCrowdsale {
     uint256 private immutable minBuyValue;
     uint256 private immutable exchangeRate;
     uint256 private immutable referralPercentage;
+
     uint256 private soldAmount;
 
     mapping(address => bool) private authorizedTokens;
     mapping(address => uint256) private userToClaimableAmount;
 
-    event TokenBought(address indexed buyer, address indexed stableCoin, uint256 value, address indexed referral);
+    event SaleInitialized(
+        address token,
+        address wallet,
+        uint256 saleStart,
+        uint256 saleEnd,
+        uint256 minBuyValue,
+        uint256 exchangeRate,
+        uint256 referralPercentage,
+        address[] authorizedTokens
+    );
+    event TokenBought(
+        address indexed buyer,
+        address indexed stableCoin,
+        uint256 value,
+        address indexed referral
+    );
     event SaleFinalized(uint256 remainingBalance);
 
     constructor(
@@ -56,6 +61,17 @@ contract TotemCrowdsale {
         for (uint8 i = 0; i < _authorizedTokens.length; i += 1) {
             authorizedTokens[_authorizedTokens[i]] = true;
         }
+
+        emit SaleInitialized(
+            _token,
+            _wallet,
+            _saleStart,
+            _saleEnd,
+            _minBuyValue,
+            _exchangeRate,
+            _referralPercentage,
+            _authorizedTokens
+        );
     }
 
     function buyToken(
@@ -67,19 +83,26 @@ contract TotemCrowdsale {
         require(block.timestamp >= saleStart, "TotemCrowdsale: sale not started yet");
         require(block.timestamp <= saleEnd, "TotemCrowdsale: sale ended");
         require(
-            referral == address(0) || (msg.sender != referral && userToClaimableAmount[referral] > 0),
+            referral == address(0) ||
+                (msg.sender != referral && userToClaimableAmount[referral] > 0),
             "TotemCrowdsale: invalid referral address"
         );
 
         uint256 tokensAvailable = IERC20(token).balanceOf(address(this));
         uint256 claimableAmount = value * exchangeRate;
-        require(tokensAvailable >= soldAmount + claimableAmount, "TotemCrowdsale: not enough tokens available");
+        require(
+            tokensAvailable >= soldAmount + claimableAmount,
+            "TotemCrowdsale: not enough tokens available"
+        );
         userToClaimableAmount[msg.sender] += claimableAmount;
         soldAmount += claimableAmount;
 
         if (referral != address(0)) {
             uint256 referralReward = (claimableAmount * referralPercentage) / 100;
-            require(tokensAvailable >= soldAmount + referralReward, "TotemCrowdsale: not enough tokens available");
+            require(
+                tokensAvailable >= soldAmount + referralReward,
+                "TotemCrowdsale: not enough tokens available"
+            );
             userToClaimableAmount[referral] += referralReward;
             soldAmount += referralReward;
         }
@@ -100,15 +123,11 @@ contract TotemCrowdsale {
         ITotemToken(token).burn(balance);
     }
 
-    function getSaleInfo() external view returns (SaleInfo memory) {
-        return SaleInfo(token, wallet, saleStart, saleEnd, minBuyValue, exchangeRate, referralPercentage, soldAmount);
+    function getSoldAmount() external view returns (uint256) {
+        return soldAmount;
     }
 
     function getClaimableAmount(address account) external view returns (uint256) {
         return userToClaimableAmount[account];
-    }
-
-    function isTokenAuthorized(address _token) external view returns (bool) {
-        return authorizedTokens[_token];
     }
 }

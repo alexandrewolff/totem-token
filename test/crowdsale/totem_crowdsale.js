@@ -24,16 +24,17 @@ contract('Totem Crowdsale', (accounts) => {
   let usdc;
   let saleStart;
   let saleEnd;
+  let authorizedTokens;
   const minBuyValue = new BN(web3.utils.toWei('300', 'ether'), 10);
   const exchangeRate = new BN(50, 10);
   const referralPercentage = new BN(2, 10);
-  const totalSupply = new BN(web3.utils.toWei('1000000', 'ether'), 10);
+  const tokenTotalSupply = new BN(web3.utils.toWei('1000000', 'ether'), 10);
 
   const [owner, user1, user2, wallet, usdt, dai] = accounts;
 
   beforeEach(async () => {
     usdc = await deployBasicToken('USDC', user1);
-    token = await TotemToken.new('Test Token', 'TST', totalSupply, {
+    token = await TotemToken.new('Test Token', 'TST', tokenTotalSupply, {
       from: owner,
     });
 
@@ -41,6 +42,8 @@ contract('Totem Crowdsale', (accounts) => {
     const now = res.timestamp;
     saleStart = now + time.duration.days(1).toNumber();
     saleEnd = saleStart + time.duration.days(30).toNumber();
+
+    authorizedTokens = [usdc.address, usdt, dai];
 
     crowdsale = await TotemCrowdsale.new(
       token.address,
@@ -56,31 +59,35 @@ contract('Totem Crowdsale', (accounts) => {
       }
     );
 
-    await token.transfer(crowdsale.address, totalSupply, { from: owner });
+    await token.transfer(crowdsale.address, tokenTotalSupply, { from: owner });
     await usdc.approve(crowdsale.address, MAX_INT256, { from: user1 });
   });
 
   describe('Initialisation', () => {
-    it('should initialize with token address and exchangeRate', async () => {
-      const res = await crowdsale.getSaleInfo();
-      assert(res.token === token.address);
-      assert(res.wallet === wallet);
-      assert(parseInt(res.saleStart) === saleStart);
-      assert(parseInt(res.saleEnd) === saleEnd);
-      assert(new BN(res.minBuyValue, 10).eq(minBuyValue));
-      assert(new BN(res.exchangeRate, 10).eq(exchangeRate));
-      assert(new BN(res.referralPercentage, 10).eq(referralPercentage));
-      assert(parseInt(res.soldAmount) === 0);
-    });
+    it('should initialize with sale settings', async () => {
+      const web3jsCrowdsale = new web3.eth.Contract(
+        crowdsale.abi,
+        crowdsale.address
+      );
+      const events = await web3jsCrowdsale.getPastEvents('SaleInitialized', {
+        fromBlock: 'earliest',
+        toBlock: 'latest',
+      });
+      const { event, returnValues } = events[0];
 
-    it('should initialize authorized tokens', async () => {
-      const usdcAuthorization = await crowdsale.isTokenAuthorized(usdc.address);
-      const usdtAuthorization = await crowdsale.isTokenAuthorized(usdt);
-      const daiAuthorization = await crowdsale.isTokenAuthorized(dai);
-
-      assert(usdcAuthorization === true);
-      assert(usdtAuthorization === true);
-      assert(daiAuthorization === true);
+      assert(event === 'SaleInitialized');
+      assert(returnValues.token === token.address);
+      assert(returnValues.wallet === wallet);
+      assert(parseInt(returnValues.saleStart) === saleStart);
+      assert(parseInt(returnValues.saleEnd) === saleEnd);
+      assert(new BN(returnValues.minBuyValue, 10).eq(minBuyValue));
+      assert(new BN(returnValues.exchangeRate, 10).eq(exchangeRate));
+      assert(
+        new BN(returnValues.referralPercentage, 10).eq(referralPercentage)
+      );
+      authorizedTokens.forEach((token) =>
+        assert(returnValues.authorizedTokens.includes(token))
+      );
     });
   });
 
@@ -117,7 +124,7 @@ contract('Totem Crowdsale', (accounts) => {
         );
 
         const claimableAmount = await crowdsale.getClaimableAmount(user1);
-        let res = await crowdsale.getSaleInfo();
+        let soldAmount = await crowdsale.getSoldAmount();
         const walletUsdcBalance = await usdc.balanceOf(wallet);
 
         expectEvent(receipt, 'TokenBought', {
@@ -126,16 +133,16 @@ contract('Totem Crowdsale', (accounts) => {
           value: new BN(value, 10),
         });
         assert(claimableAmount.eq(expectedTokenAmount));
-        assert(new BN(res.soldAmount, 10).eq(expectedTokenAmount));
+        assert(new BN(soldAmount, 10).eq(expectedTokenAmount));
         assert(walletUsdcBalance.eq(value));
 
         await crowdsale.buyToken(usdc.address, value, ZERO_ADDRESS, {
           from: user1,
         });
-        res = await crowdsale.getSaleInfo();
+        soldAmount = await crowdsale.getSoldAmount();
 
         assert(
-          new BN(res.soldAmount, 10).eq(expectedTokenAmount.mul(new BN(2, 10)))
+          new BN(soldAmount, 10).eq(expectedTokenAmount.mul(new BN(2, 10)))
         );
       });
 
@@ -171,13 +178,20 @@ contract('Totem Crowdsale', (accounts) => {
       });
 
       it('should sell all tokens left', async () => {
-        const totalSupplyValue = totalSupply.div(new BN(exchangeRate, 10));
-        await crowdsale.buyToken(usdc.address, totalSupplyValue, ZERO_ADDRESS, {
-          from: user1,
-        });
+        const tokenTotalSupplyValue = tokenTotalSupply.div(
+          new BN(exchangeRate, 10)
+        );
+        await crowdsale.buyToken(
+          usdc.address,
+          tokenTotalSupplyValue,
+          ZERO_ADDRESS,
+          {
+            from: user1,
+          }
+        );
         const claimableAmount = await crowdsale.getClaimableAmount(user1);
 
-        assert(claimableAmount.eq(totalSupply));
+        assert(claimableAmount.eq(tokenTotalSupply));
       });
     });
 
@@ -205,7 +219,7 @@ contract('Totem Crowdsale', (accounts) => {
           from: user1,
         });
         const finalClaimableAmount = await crowdsale.getClaimableAmount(user2);
-        const res = await crowdsale.getSaleInfo();
+        const soldAmount = await crowdsale.getSoldAmount();
 
         expectEvent(receipt, 'TokenBought', {
           referral: user2,
@@ -216,7 +230,7 @@ contract('Totem Crowdsale', (accounts) => {
             .eq(expectedReferralAmount)
         );
         assert(
-          new BN(res.soldAmount, 10).eq(
+          new BN(soldAmount, 10).eq(
             expectedTokenAmount
               .add(expectedReferralAmount)
               .add(expectedUsers2Tokens)
