@@ -23,6 +23,9 @@ contract('Totem Crowdsale', (accounts) => {
   let usdc;
   let saleStart;
   let saleEnd;
+  let withdrawStart;
+  const withdrawPeriodLength = time.duration.weeks(4).toNumber();
+  const withdrawPeriodNumber = 10;
   let authorizedTokens;
   const minBuyValue = new BN(web3.utils.toWei('300', 'ether'), 10);
   const exchangeRate = new BN(50, 10);
@@ -41,6 +44,7 @@ contract('Totem Crowdsale', (accounts) => {
     const now = res.timestamp;
     saleStart = now + time.duration.days(1).toNumber();
     saleEnd = saleStart + time.duration.days(30).toNumber();
+    withdrawStart = saleStart + time.duration.days(90).toNumber();
 
     authorizedTokens = [usdc.address, usdt, dai];
 
@@ -49,10 +53,11 @@ contract('Totem Crowdsale', (accounts) => {
       wallet,
       saleStart,
       saleEnd,
+      withdrawStart,
       minBuyValue,
       exchangeRate,
       referralPercentage,
-      [usdc.address, usdt, dai],
+      authorizedTokens,
       {
         from: owner,
       }
@@ -79,6 +84,13 @@ contract('Totem Crowdsale', (accounts) => {
       assert(returnValues.wallet === wallet);
       assert(parseInt(returnValues.saleStart) === saleStart);
       assert(parseInt(returnValues.saleEnd) === saleEnd);
+      assert(parseInt(returnValues.withdrawStart) === withdrawStart);
+      assert(
+        parseInt(returnValues.withdrawPeriodLength) === withdrawPeriodLength
+      );
+      assert(
+        parseInt(returnValues.withdrawPeriodNumber) === withdrawPeriodNumber
+      );
       assert(new BN(returnValues.minBuyValue, 10).eq(minBuyValue));
       assert(new BN(returnValues.exchangeRate, 10).eq(exchangeRate));
       assert(
@@ -127,7 +139,7 @@ contract('Totem Crowdsale', (accounts) => {
         const walletUsdcBalance = await usdc.balanceOf(wallet);
 
         expectEvent(receipt, 'TokenBought', {
-          buyer: user1,
+          account: user1,
           stableCoin: usdc.address,
           value,
           referral: ZERO_ADDRESS,

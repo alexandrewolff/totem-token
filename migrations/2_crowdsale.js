@@ -9,12 +9,11 @@ const saleStart = 0;
 const saleEnd = 2031369020;
 // const saleStart = 1628777020;
 // const saleEnd = 1631369020;
+const withdrawStart = saleEnd;
 const minBuyValue = new Web3.utils.BN(Web3.utils.toWei('300', 'ether'), 10);
 const exchangeRate = 50;
 const referralPercentage = 2;
 const bscStableCoins = [];
-
-// const computeDates
 
 module.exports = async (deployer, network, accounts) => {
   const token = await TotemToken.deployed();
@@ -45,6 +44,7 @@ module.exports = async (deployer, network, accounts) => {
     wallet,
     saleStart,
     saleEnd,
+    withdrawStart,
     minBuyValue,
     exchangeRate,
     referralPercentage,

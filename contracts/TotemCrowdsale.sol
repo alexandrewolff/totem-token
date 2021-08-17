@@ -13,6 +13,9 @@ contract TotemCrowdsale {
     address private immutable wallet;
     uint256 private immutable saleStart;
     uint256 private immutable saleEnd;
+    uint256 private immutable withdrawStart;
+    uint256 private constant withdrawPeriodLength = 4 weeks;
+    uint256 private constant withdrawPeriodNumber = 10;
     uint256 private immutable minBuyValue;
     uint256 private immutable exchangeRate;
     uint256 private immutable referralPercentage;
@@ -21,23 +24,28 @@ contract TotemCrowdsale {
 
     mapping(address => bool) private authorizedTokens;
     mapping(address => uint256) private userToClaimableAmount;
+    mapping(address => uint256) private userToWithdrewAmount;
 
     event SaleInitialized(
-        address token,
+        address indexed token,
         address wallet,
         uint256 saleStart,
         uint256 saleEnd,
+        uint256 withdrawStart,
+        uint256 withdrawPeriodLength,
+        uint256 withdrawPeriodNumber,
         uint256 minBuyValue,
         uint256 exchangeRate,
         uint256 referralPercentage,
         address[] authorizedTokens
     );
     event TokenBought(
-        address indexed buyer,
+        address indexed account,
         address indexed stableCoin,
         uint256 value,
         address indexed referral
     );
+    event TokenWithdrew(address indexed account, uint256 amount);
     event SaleFinalized(uint256 remainingBalance);
 
     constructor(
@@ -45,6 +53,7 @@ contract TotemCrowdsale {
         address _wallet,
         uint256 _saleStart,
         uint256 _saleEnd,
+        uint256 _withdrawStart,
         uint256 _minBuyValue,
         uint256 _exchangeRate,
         uint256 _referralPercentage,
@@ -54,6 +63,7 @@ contract TotemCrowdsale {
         wallet = _wallet;
         saleStart = _saleStart;
         saleEnd = _saleEnd;
+        withdrawStart = _withdrawStart;
         minBuyValue = _minBuyValue;
         exchangeRate = _exchangeRate;
         referralPercentage = _referralPercentage;
@@ -67,6 +77,9 @@ contract TotemCrowdsale {
             _wallet,
             _saleStart,
             _saleEnd,
+            _withdrawStart,
+            withdrawPeriodLength,
+            withdrawPeriodNumber,
             _minBuyValue,
             _exchangeRate,
             _referralPercentage,
@@ -113,9 +126,16 @@ contract TotemCrowdsale {
         IERC20(stableCoin).safeTransferFrom(msg.sender, wallet, value);
     }
 
-    // function withdrawToken() external {
-    // IERC20(token).transfer(msg.sender, amountToSend); // considers that token reverts if transfer not successfull
-    // }
+    function withdrawToken() external {
+        uint256 amountToSend = userToClaimableAmount[msg.sender] /
+            withdrawPeriodNumber -
+            userToWithdrewAmount[msg.sender];
+        userToWithdrewAmount[msg.sender] += amountToSend;
+
+        emit TokenWithdrew(msg.sender, amountToSend);
+
+        IERC20(token).transfer(msg.sender, amountToSend); // considers that token reverts if transfer not successfull
+    }
 
     function finalizeSale() external {
         require(block.timestamp > saleEnd, "TotemCrowdsale: sale not ended yet");
@@ -131,4 +151,6 @@ contract TotemCrowdsale {
     function getClaimableAmount(address account) external view returns (uint256) {
         return userToClaimableAmount[account];
     }
+
+    // getWithdrewAmount
 }
