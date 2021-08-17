@@ -1,17 +1,17 @@
-const TotemCrowdsale = artifacts.require('TotemCrowdsale');
-const TotemToken = artifacts.require('TotemToken');
-const LambdaToken = artifacts.require('LambdaToken');
+// const TotemCrowdsale = artifacts.require('TotemCrowdsale');
+// const TotemToken = artifacts.require('TotemToken');
+// const LambdaToken = artifacts.require('LambdaToken');
 
-const {
-  BN,
-  constants,
-  expectRevert,
-  expectEvent,
-  time,
-} = require('@openzeppelin/test-helpers');
-const { ZERO_ADDRESS } = require('@openzeppelin/test-helpers/src/constants');
-const { web3 } = require('@openzeppelin/test-helpers/src/setup');
-const { MAX_INT256 } = constants;
+// const {
+//   BN,
+//   constants,
+//   expectRevert,
+//   expectEvent,
+//   time,
+// } = require('@openzeppelin/test-helpers');
+// const { ZERO_ADDRESS } = require('@openzeppelin/test-helpers/src/constants');
+// const { web3 } = require('@openzeppelin/test-helpers/src/setup');
+// const { MAX_INT256 } = constants;
 
 const deployBasicToken = async (symbol, initialHolder) =>
   LambdaToken.new(symbol, symbol, web3.utils.toWei('1000000', 'ether'), {

@@ -9,9 +9,8 @@ const {
   expectEvent,
   time,
 } = require('@openzeppelin/test-helpers');
-const { ZERO_ADDRESS } = require('@openzeppelin/test-helpers/src/constants');
+const { MAX_INT256, ZERO_ADDRESS } = constants;
 const { web3 } = require('@openzeppelin/test-helpers/src/setup');
-const { MAX_INT256 } = constants;
 
 const deployBasicToken = async (symbol, initialHolder) =>
   LambdaToken.new(symbol, symbol, web3.utils.toWei('1000000', 'ether'), {
@@ -111,7 +110,7 @@ contract('Totem Crowdsale', (accounts) => {
 
     describe('Sale', () => {
       it('should sell Totem token', async () => {
-        const value = new BN(100, 10);
+        const value = new BN(web3.utils.toWei('300', 'ether'), 10);
         const expectedTokenAmount = value.mul(exchangeRate);
 
         const receipt = await crowdsale.buyToken(
@@ -130,7 +129,8 @@ contract('Totem Crowdsale', (accounts) => {
         expectEvent(receipt, 'TokenBought', {
           buyer: user1,
           stableCoin: usdc.address,
-          value: new BN(value, 10),
+          value,
+          referral: ZERO_ADDRESS,
         });
         assert(claimableAmount.eq(expectedTokenAmount));
         assert(new BN(soldAmount, 10).eq(expectedTokenAmount));
@@ -146,7 +146,7 @@ contract('Totem Crowdsale', (accounts) => {
         );
       });
 
-      it.only('should not sell if under minimum buy value', async () => {
+      it('should not sell if under minimum buy value', async () => {
         await expectRevert(
           crowdsale.buyToken(
             usdc.address,
@@ -211,16 +211,16 @@ contract('Totem Crowdsale', (accounts) => {
 
     describe('Referral', () => {
       it('should apply referral reward', async () => {
-        const value = new BN(100, 10);
+        const value = new BN(web3.utils.toWei('400', 'ether'), 10);
         const expectedTokenAmount = value.mul(exchangeRate);
         const expectedReferralAmount = expectedTokenAmount
           .mul(referralPercentage)
           .div(new BN(100, 10));
 
         // Add user2 to buyers
-        const user2Value = new BN(1, 10);
+        const user2Value = new BN(web3.utils.toWei('300', 'ether'), 10);
         const expectedUsers2Tokens = user2Value.mul(exchangeRate);
-        await usdc.transfer(user2, 1, { from: user1 });
+        await usdc.transfer(user2, user2Value, { from: user1 });
         await usdc.approve(crowdsale.address, MAX_INT256, { from: user2 });
         await crowdsale.buyToken(usdc.address, user2Value, ZERO_ADDRESS, {
           from: user2,
@@ -254,14 +254,15 @@ contract('Totem Crowdsale', (accounts) => {
 
       it('should not sell if not enough supply for referral', async () => {
         // Add user2 to buyers
-        await usdc.transfer(user2, 1, { from: user1 });
+        const user2Value = new BN(web3.utils.toWei('300', 'ether'), 10);
+        await usdc.transfer(user2, user2Value, { from: user1 });
         await usdc.approve(crowdsale.address, MAX_INT256, { from: user2 });
-        await crowdsale.buyToken(usdc.address, 1, ZERO_ADDRESS, {
+        await crowdsale.buyToken(usdc.address, user2Value, ZERO_ADDRESS, {
           from: user2,
         });
 
         const crowdsaleBalance = await token.balanceOf(crowdsale.address);
-        const supplyLeftValue = crowdsaleBalance.div(new BN(exchangeRate, 10));
+        const supplyLeftValue = crowdsaleBalance.div(exchangeRate);
 
         await expectRevert(
           crowdsale.buyToken(usdc.address, supplyLeftValue, user2, {
@@ -273,18 +274,28 @@ contract('Totem Crowdsale', (accounts) => {
 
       it('should not accept address different from buyers and zero for referral', async () => {
         await expectRevert(
-          crowdsale.buyToken(usdc.address, 100, user2, {
-            from: user1,
-          }),
+          crowdsale.buyToken(
+            usdc.address,
+            web3.utils.toWei('400', 'ether'),
+            user2,
+            {
+              from: user1,
+            }
+          ),
           'TotemCrowdsale: invalid referral address'
         );
       });
 
       it('should not allow referral to be buyer', async () => {
         await expectRevert(
-          crowdsale.buyToken(usdc.address, 100, user1, {
-            from: user1,
-          }),
+          crowdsale.buyToken(
+            usdc.address,
+            web3.utils.toWei('2500', 'ether'),
+            user1,
+            {
+              from: user1,
+            }
+          ),
           'TotemCrowdsale: invalid referral address'
         );
       });
