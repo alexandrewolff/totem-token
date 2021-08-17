@@ -127,10 +127,22 @@ contract TotemCrowdsale {
     }
 
     function withdrawToken() external {
-        uint256 amountToSend = userToClaimableAmount[msg.sender] /
-            withdrawPeriodNumber -
-            userToWithdrewAmount[msg.sender];
-        userToWithdrewAmount[msg.sender] += amountToSend;
+        uint256 periodElapsed = (block.timestamp - withdrawStart) / withdrawPeriodLength + 1; // reverts if before withdrawStart
+
+        uint256 amountToSend;
+        if (periodElapsed >= withdrawPeriodNumber) {
+            amountToSend = userToClaimableAmount[msg.sender] - userToWithdrewAmount[msg.sender];
+            delete userToClaimableAmount[msg.sender];
+            delete userToWithdrewAmount[msg.sender];
+        } else {
+            uint256 withdrawableAmountPerPeriod = userToClaimableAmount[msg.sender] /
+                withdrawPeriodNumber;
+            amountToSend =
+                withdrawableAmountPerPeriod *
+                periodElapsed -
+                userToWithdrewAmount[msg.sender];
+            userToWithdrewAmount[msg.sender] += amountToSend;
+        }
 
         emit TokenWithdrew(msg.sender, amountToSend);
 
