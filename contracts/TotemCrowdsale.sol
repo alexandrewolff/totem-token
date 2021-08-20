@@ -17,8 +17,20 @@ contract TotemCrowdsale {
     uint256 private constant withdrawPeriodLength = 4 weeks;
     uint256 private constant withdrawPeriodNumber = 10;
     uint256 private immutable minBuyValue;
+    // uint256 private maxBuyValue;
     uint256 private immutable exchangeRate;
-    uint256 private immutable referralPercentage;
+    uint256 private immutable referralRewardPercentage;
+
+    // function setSaleStart
+    // function setSaleEnd
+    // function setWithdrewStart
+    // function setWithdrawPeriodLength
+    // function setWithdrawPeriodNumber
+    // function setMinBuyValue
+    // function setMaxBuyValue
+    // function setExchangeRate
+    // function setReferralRewardPercentage
+    // function authorizeTokens
 
     uint256 private soldAmount;
 
@@ -36,7 +48,7 @@ contract TotemCrowdsale {
         uint256 withdrawPeriodNumber,
         uint256 minBuyValue,
         uint256 exchangeRate,
-        uint256 referralPercentage,
+        uint256 referralRewardPercentage,
         address[] authorizedTokens
     );
     event TokenBought(
@@ -66,7 +78,7 @@ contract TotemCrowdsale {
         withdrawStart = _withdrawStart;
         minBuyValue = _minBuyValue;
         exchangeRate = _exchangeRate;
-        referralPercentage = _referralPercentage;
+        referralRewardPercentage = _referralPercentage;
 
         for (uint8 i = 0; i < _authorizedTokens.length; i += 1) {
             authorizedTokens[_authorizedTokens[i]] = true;
@@ -112,7 +124,7 @@ contract TotemCrowdsale {
         soldAmount += claimableAmount;
 
         if (referral != address(0)) {
-            uint256 referralReward = (claimableAmount * referralPercentage) / 100;
+            uint256 referralReward = (claimableAmount * referralRewardPercentage) / 100;
             require(
                 tokensAvailable >= soldAmount + referralReward,
                 "TotemCrowdsale: not enough tokens available"
@@ -127,10 +139,10 @@ contract TotemCrowdsale {
     }
 
     function withdrawToken() external {
-        uint256 periodElapsed = (block.timestamp - withdrawStart) / withdrawPeriodLength + 1; // reverts if before withdrawStart
+        uint256 periodsElapsed = (block.timestamp - withdrawStart) / withdrawPeriodLength + 1; // reverts if before withdrawStart
 
         uint256 amountToSend;
-        if (periodElapsed >= withdrawPeriodNumber) {
+        if (periodsElapsed >= withdrawPeriodNumber) {
             amountToSend = userToClaimableAmount[msg.sender] - userToWithdrewAmount[msg.sender];
             delete userToClaimableAmount[msg.sender];
             delete userToWithdrewAmount[msg.sender];
@@ -139,7 +151,7 @@ contract TotemCrowdsale {
                 withdrawPeriodNumber;
             amountToSend =
                 withdrawableAmountPerPeriod *
-                periodElapsed -
+                periodsElapsed -
                 userToWithdrewAmount[msg.sender];
             userToWithdrewAmount[msg.sender] += amountToSend;
         }
@@ -164,5 +176,7 @@ contract TotemCrowdsale {
         return userToClaimableAmount[account];
     }
 
-    // getWithdrewAmount
+    function getWithdrewAmount(address account) external view returns (uint256) {
+        return userToWithdrewAmount[account];
+    }
 }

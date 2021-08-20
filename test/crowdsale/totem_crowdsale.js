@@ -29,7 +29,7 @@ contract('Totem Crowdsale', (accounts) => {
   let authorizedTokens;
   const minBuyValue = new BN(web3.utils.toWei('300', 'ether'), 10);
   const exchangeRate = new BN(50, 10);
-  const referralPercentage = new BN(2, 10);
+  const referralRewardPercentage = new BN(2, 10);
   const tokenTotalSupply = new BN(web3.utils.toWei('1000000', 'ether'), 10);
 
   const [owner, user1, user2, wallet, usdt, dai] = accounts;
@@ -56,7 +56,7 @@ contract('Totem Crowdsale', (accounts) => {
       withdrawStart,
       minBuyValue,
       exchangeRate,
-      referralPercentage,
+      referralRewardPercentage,
       authorizedTokens,
       {
         from: owner,
@@ -94,7 +94,9 @@ contract('Totem Crowdsale', (accounts) => {
       assert(new BN(returnValues.minBuyValue, 10).eq(minBuyValue));
       assert(new BN(returnValues.exchangeRate, 10).eq(exchangeRate));
       assert(
-        new BN(returnValues.referralPercentage, 10).eq(referralPercentage)
+        new BN(returnValues.referralRewardPercentage, 10).eq(
+          referralRewardPercentage
+        )
       );
       authorizedTokens.forEach((token) =>
         assert(returnValues.authorizedTokens.includes(token))
@@ -226,7 +228,7 @@ contract('Totem Crowdsale', (accounts) => {
         const value = new BN(web3.utils.toWei('400', 'ether'), 10);
         const expectedTokenAmount = value.mul(exchangeRate);
         const expectedReferralAmount = expectedTokenAmount
-          .mul(referralPercentage)
+          .mul(referralRewardPercentage)
           .div(new BN(100, 10));
 
         // Add user2 to buyers

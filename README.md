@@ -33,3 +33,9 @@ truffle run verify <CONTRACT NAME> --network <NETWORK NAME>
 ```
 ./scripts/verify.sh
 ```
+
+## Static security check
+
+```
+slither --truffle-version truffle@5.2.4 .
+```
