@@ -6,14 +6,21 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./ITotemToken.sol";
 
+struct SaleSettings {
+    address wallet;
+    uint256 saleStart;
+    uint256 saleEnd;
+    uint256 withdrawalStart;
+}
+
 contract TotemCrowdsale {
     using SafeERC20 for IERC20;
 
     address private immutable token;
-    address private immutable wallet;
-    uint256 private immutable saleStart;
-    uint256 private immutable saleEnd;
-    uint256 private immutable withdrawStart;
+    address private wallet;
+    uint256 private saleStart;
+    uint256 private saleEnd;
+    uint256 private withdrawalStart;
     uint256 private constant withdrawPeriodLength = 4 weeks;
     uint256 private constant withdrawPeriodNumber = 10;
     uint256 private immutable minBuyValue;
@@ -21,9 +28,30 @@ contract TotemCrowdsale {
     uint256 private immutable exchangeRate;
     uint256 private immutable referralRewardPercentage;
 
-    // function setSaleStart
-    // function setSaleEnd
-    // function setWithdrewStart
+    function setWallet(address newWallet) external {
+        wallet = newWallet;
+        emit WalletUpdated(newWallet, msg.sender);
+    }
+
+    function setSaleStart(uint256 newSaleStart) external onlyBeforeSaleStart {
+        saleStart = newSaleStart;
+        emit SaleStartUpdated(newSaleStart, msg.sender);
+    }
+
+    function setSaleEnd(uint256 newSaleEnd) external onlyBeforeSaleStart {
+        saleEnd = newSaleEnd;
+        emit SaleEndUpdated(newSaleEnd, msg.sender);
+    }
+
+    function setWithdrawalStart(uint256 newWithdrawalStart) external onlyBeforeSaleStart {
+        withdrawalStart = newWithdrawalStart;
+        emit WithdrawalStartUpdated(newWithdrawalStart, msg.sender);
+    }
+
+    function getSaleSettings() external view returns (SaleSettings memory) {
+        return SaleSettings(wallet, saleStart, saleEnd, withdrawalStart);
+    }
+
     // function setWithdrawPeriodLength
     // function setWithdrawPeriodNumber
     // function setMinBuyValue
@@ -41,9 +69,6 @@ contract TotemCrowdsale {
     event SaleInitialized(
         address indexed token,
         address wallet,
-        uint256 saleStart,
-        uint256 saleEnd,
-        uint256 withdrawStart,
         uint256 withdrawPeriodLength,
         uint256 withdrawPeriodNumber,
         uint256 minBuyValue,
@@ -51,6 +76,12 @@ contract TotemCrowdsale {
         uint256 referralRewardPercentage,
         address[] authorizedTokens
     );
+
+    event WalletUpdated(address newWallet, address indexed updater);
+    event SaleStartUpdated(uint256 newSaleStart, address indexed updater);
+    event SaleEndUpdated(uint256 newSaleEnd, address indexed updater);
+    event WithdrawalStartUpdated(uint256 newWithdrawalStart, address indexed updater);
+
     event TokenBought(
         address indexed account,
         address indexed stableCoin,
@@ -60,12 +91,16 @@ contract TotemCrowdsale {
     event TokenWithdrew(address indexed account, uint256 amount);
     event SaleFinalized(uint256 remainingBalance);
 
+    modifier onlyBeforeSaleStart() {
+        if (saleStart > 0) {
+            require(block.timestamp < saleStart, "TotemCrowdsale: sale already started");
+        }
+        _;
+    }
+
     constructor(
         address _token,
         address _wallet,
-        uint256 _saleStart,
-        uint256 _saleEnd,
-        uint256 _withdrawStart,
         uint256 _minBuyValue,
         uint256 _exchangeRate,
         uint256 _referralPercentage,
@@ -73,9 +108,7 @@ contract TotemCrowdsale {
     ) {
         token = _token;
         wallet = _wallet;
-        saleStart = _saleStart;
-        saleEnd = _saleEnd;
-        withdrawStart = _withdrawStart;
+
         minBuyValue = _minBuyValue;
         exchangeRate = _exchangeRate;
         referralRewardPercentage = _referralPercentage;
@@ -87,9 +120,6 @@ contract TotemCrowdsale {
         emit SaleInitialized(
             _token,
             _wallet,
-            _saleStart,
-            _saleEnd,
-            _withdrawStart,
             withdrawPeriodLength,
             withdrawPeriodNumber,
             _minBuyValue,
@@ -139,7 +169,7 @@ contract TotemCrowdsale {
     }
 
     function withdrawToken() external {
-        uint256 periodsElapsed = (block.timestamp - withdrawStart) / withdrawPeriodLength + 1; // reverts if before withdrawStart
+        uint256 periodsElapsed = (block.timestamp - withdrawalStart) / withdrawPeriodLength + 1; // reverts if before withdrawalStart
 
         uint256 amountToSend;
         if (periodsElapsed >= withdrawPeriodNumber) {

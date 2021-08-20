@@ -23,7 +23,7 @@ contract('Totem Crowdsale', (accounts) => {
   let usdc;
   let saleStart;
   let saleEnd;
-  let withdrawStart;
+  let withdrawalStart;
   const withdrawPeriodLength = time.duration.weeks(4).toNumber();
   const withdrawPeriodNumber = 10;
   let authorizedTokens;
@@ -44,16 +44,13 @@ contract('Totem Crowdsale', (accounts) => {
     const now = res.timestamp;
     saleStart = now + time.duration.days(1).toNumber();
     saleEnd = saleStart + time.duration.days(30).toNumber();
-    withdrawStart = saleStart + time.duration.days(90).toNumber();
+    withdrawalStart = saleStart + time.duration.days(90).toNumber();
 
     authorizedTokens = [usdc.address, usdt, dai];
 
     crowdsale = await TotemCrowdsale.new(
       token.address,
       wallet,
-      saleStart,
-      saleEnd,
-      withdrawStart,
       minBuyValue,
       exchangeRate,
       referralRewardPercentage,
@@ -62,6 +59,9 @@ contract('Totem Crowdsale', (accounts) => {
         from: owner,
       }
     );
+    await crowdsale.setSaleEnd(saleEnd);
+    await crowdsale.setWithdrawalStart(withdrawalStart);
+    await crowdsale.setSaleStart(saleStart);
 
     await token.transfer(crowdsale.address, tokenTotalSupply, { from: owner });
     await usdc.approve(crowdsale.address, MAX_INT256, { from: user1 });
@@ -78,13 +78,11 @@ contract('Totem Crowdsale', (accounts) => {
         toBlock: 'latest',
       });
       const { event, returnValues } = events[0];
+      const saleSettings = await crowdsale.getSaleSettings();
 
       assert(event === 'SaleInitialized');
       assert(returnValues.token === token.address);
       assert(returnValues.wallet === wallet);
-      assert(parseInt(returnValues.saleStart) === saleStart);
-      assert(parseInt(returnValues.saleEnd) === saleEnd);
-      assert(parseInt(returnValues.withdrawStart) === withdrawStart);
       assert(
         parseInt(returnValues.withdrawPeriodLength) === withdrawPeriodLength
       );
@@ -101,6 +99,10 @@ contract('Totem Crowdsale', (accounts) => {
       authorizedTokens.forEach((token) =>
         assert(returnValues.authorizedTokens.includes(token))
       );
+      // assert(parseInt(saleSettings.wallet) === wallet);
+      assert(parseInt(saleSettings.saleStart) === saleStart);
+      assert(parseInt(saleSettings.saleEnd) === saleEnd);
+      assert(parseInt(saleSettings.withdrawalStart) === withdrawalStart);
     });
   });
 
@@ -115,11 +117,92 @@ contract('Totem Crowdsale', (accounts) => {
         );
       });
     });
+
+    describe('Setters', () => {
+      it('should update wallet', async () => {
+        const receipt = await crowdsale.setWallet(owner);
+        const saleSettings = await crowdsale.getSaleSettings();
+
+        expectEvent(receipt, 'WalletUpdated', {
+          newWallet: owner,
+        });
+        assert(saleSettings.wallet === owner);
+      });
+
+      it('should update sale start', async () => {
+        const newSaleStart = saleStart + 100000000;
+        const receipt = await crowdsale.setSaleStart(newSaleStart);
+        const saleSettings = await crowdsale.getSaleSettings();
+
+        expectEvent(receipt, 'SaleStartUpdated', {
+          newSaleStart: new BN(newSaleStart, 10),
+        });
+        assert(parseInt(saleSettings.saleStart) === newSaleStart);
+      });
+
+      it.skip('should update sale start if not initialized', async () => {
+        localCrowdsale = await TotemCrowdsale.new(token.address, {
+          from: owner,
+        });
+        const receipt = await localCrowdsale.setSaleStart(saleStart);
+        const saleSettings = await localCrowdsale.getSaleSettings();
+
+        expectEvent(receipt, 'SaleStartUpdated', {
+          newSaleStart: new BN(saleStart, 10),
+        });
+        assert(parseInt(saleSettings.saleStart) === saleStart);
+      });
+
+      it('should update sale end', async () => {
+        const newSaleEnd = saleStart + 100000000;
+        const receipt = await crowdsale.setSaleEnd(newSaleEnd);
+        const saleSettings = await crowdsale.getSaleSettings();
+
+        expectEvent(receipt, 'SaleEndUpdated', {
+          newSaleEnd: new BN(newSaleEnd, 10),
+        });
+        assert(parseInt(saleSettings.saleEnd) === newSaleEnd);
+      });
+
+      it('should update withdrawal start', async () => {
+        const newWithdrawalStart = saleStart + 100000000;
+        const receipt = await crowdsale.setWithdrawalStart(newWithdrawalStart);
+        const saleSettings = await crowdsale.getSaleSettings();
+
+        expectEvent(receipt, 'WithdrawalStartUpdated', {
+          newWithdrawalStart: new BN(newWithdrawalStart, 10),
+        });
+        assert(parseInt(saleSettings.withdrawalStart) === newWithdrawalStart);
+      });
+    });
   });
 
   describe('During sale', () => {
     before(async () => {
       await time.increase(time.duration.days(2));
+    });
+
+    describe('Setters', () => {
+      it('should not update sale start after sale started', async () => {
+        await expectRevert(
+          crowdsale.setSaleStart(saleStart + 100000000),
+          'TotemCrowdsale: sale already started'
+        );
+      });
+
+      it('should not update sale end after sale started', async () => {
+        await expectRevert(
+          crowdsale.setSaleEnd(saleStart + 100000000),
+          'TotemCrowdsale: sale already started'
+        );
+      });
+
+      it('should not update withdrawal start after sale started', async () => {
+        await expectRevert(
+          crowdsale.setWithdrawalStart(saleStart + 100000000),
+          'TotemCrowdsale: sale already started'
+        );
+      });
     });
 
     describe('Sale', () => {
