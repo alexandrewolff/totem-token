@@ -12,6 +12,11 @@ struct SaleSettings {
     uint256 saleEnd;
     uint256 withdrawalStart;
     uint256 withdrawPeriodDuration;
+    uint256 withdrawPeriodNumber;
+    uint256 minBuyValue;
+    uint256 maxBuyValue;
+    uint256 exchangeRate;
+    uint256 referralRewardPercentage;
 }
 
 contract TotemCrowdsale {
@@ -23,11 +28,11 @@ contract TotemCrowdsale {
     uint256 private saleEnd;
     uint256 private withdrawalStart;
     uint256 private withdrawPeriodDuration;
-    uint256 private constant withdrawPeriodNumber = 10;
-    uint256 private immutable minBuyValue;
-    // uint256 private maxBuyValue;
-    uint256 private immutable exchangeRate;
-    uint256 private immutable referralRewardPercentage;
+    uint256 private withdrawPeriodNumber;
+    uint256 private minBuyValue;
+    uint256 private maxBuyValue;
+    uint256 private exchangeRate;
+    uint256 private referralRewardPercentage;
 
     function setWallet(address newWallet) external {
         wallet = newWallet;
@@ -57,17 +62,51 @@ contract TotemCrowdsale {
         emit WithdrawPeriodDurationUpdated(newWithdrawPeriodDuration, msg.sender);
     }
 
-    function getSaleSettings() external view returns (SaleSettings memory) {
-        return SaleSettings(wallet, saleStart, saleEnd, withdrawalStart, withdrawPeriodDuration);
+    function setWithdrawPeriodNumber(uint256 newWithdrawPeriodNumber) external onlyBeforeSaleStart {
+        withdrawPeriodNumber = newWithdrawPeriodNumber;
+        emit WithdrawPeriodNumberUpdated(newWithdrawPeriodNumber, msg.sender);
     }
 
-    // function setWithdrawPeriodLength
-    // function setWithdrawPeriodNumber
-    // function setMinBuyValue
-    // function setMaxBuyValue
-    // function setExchangeRate
-    // function setReferralRewardPercentage
+    function setMinBuyValue(uint256 newMinBuyValue) external onlyBeforeSaleStart {
+        minBuyValue = newMinBuyValue;
+        emit MinBuyValueUpdated(newMinBuyValue, msg.sender);
+    }
+
+    function setMaxBuyValue(uint256 newMaxBuyValue) external onlyBeforeSaleStart {
+        maxBuyValue = newMaxBuyValue;
+        emit MaxBuyValueUpdated(newMaxBuyValue, msg.sender);
+    }
+
+    function setExchangeRate(uint256 newExchangeRate) external onlyBeforeSaleStart {
+        exchangeRate = newExchangeRate;
+        emit ExchangeRateUpdated(newExchangeRate, msg.sender);
+    }
+
+    function setReferralRewardPercentage(uint256 newReferralRewardPercentage)
+        external
+        onlyBeforeSaleStart
+    {
+        referralRewardPercentage = newReferralRewardPercentage;
+        emit ReferralRewardPercentageUpdated(newReferralRewardPercentage, msg.sender);
+    }
+
     // function authorizeTokens
+
+    function getSaleSettings() external view returns (SaleSettings memory) {
+        return
+            SaleSettings(
+                wallet,
+                saleStart,
+                saleEnd,
+                withdrawalStart,
+                withdrawPeriodDuration,
+                withdrawPeriodNumber,
+                minBuyValue,
+                maxBuyValue,
+                exchangeRate,
+                referralRewardPercentage
+            );
+    }
 
     uint256 private soldAmount;
 
@@ -75,21 +114,19 @@ contract TotemCrowdsale {
     mapping(address => uint256) private userToClaimableAmount;
     mapping(address => uint256) private userToWithdrewAmount;
 
-    event SaleInitialized(
-        address indexed token,
-        address wallet,
-        uint256 withdrawPeriodNumber,
-        uint256 minBuyValue,
-        uint256 exchangeRate,
-        uint256 referralRewardPercentage,
-        address[] authorizedTokens
-    );
-
     event WalletUpdated(address newWallet, address indexed updater);
     event SaleStartUpdated(uint256 newSaleStart, address indexed updater);
     event SaleEndUpdated(uint256 newSaleEnd, address indexed updater);
     event WithdrawalStartUpdated(uint256 newWithdrawalStart, address indexed updater);
     event WithdrawPeriodDurationUpdated(uint256 newWithdrawPeriodDuration, address indexed updater);
+    event WithdrawPeriodNumberUpdated(uint256 newWithdrawPeriodNumber, address indexed updater);
+    event MinBuyValueUpdated(uint256 newMinBuyValue, address indexed updater);
+    event MaxBuyValueUpdated(uint256 newMaxBuyValue, address indexed updater);
+    event ExchangeRateUpdated(uint256 newExchangeRate, address indexed updater);
+    event ReferralRewardPercentageUpdated(
+        uint256 newReferralRewardPercentage,
+        address indexed updater
+    );
 
     event TokenBought(
         address indexed account,
@@ -125,16 +162,6 @@ contract TotemCrowdsale {
         for (uint8 i = 0; i < _authorizedTokens.length; i += 1) {
             authorizedTokens[_authorizedTokens[i]] = true;
         }
-
-        emit SaleInitialized(
-            _token,
-            _wallet,
-            withdrawPeriodNumber,
-            _minBuyValue,
-            _exchangeRate,
-            _referralPercentage,
-            _authorizedTokens
-        );
     }
 
     function buyToken(
