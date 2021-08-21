@@ -114,22 +114,26 @@ contract('Totem Crowdsale', (accounts) => {
 
     describe('Setters', () => {
       it('should update wallet', async () => {
-        const receipt = await crowdsale.setWallet(owner);
+        const receipt = await crowdsale.setWallet(owner, { from: owner });
         const saleSettings = await crowdsale.getSaleSettings();
 
         expectEvent(receipt, 'WalletUpdated', {
           newWallet: owner,
+          updater: owner,
         });
         assert(saleSettings.wallet === owner);
       });
 
       it('should update sale start', async () => {
         const newSaleStart = saleStart + 100000000;
-        const receipt = await crowdsale.setSaleStart(newSaleStart);
+        const receipt = await crowdsale.setSaleStart(newSaleStart, {
+          from: owner,
+        });
         const saleSettings = await crowdsale.getSaleSettings();
 
         expectEvent(receipt, 'SaleStartUpdated', {
           newSaleStart: new BN(newSaleStart, 10),
+          updater: owner,
         });
         assert(parseInt(saleSettings.saleStart) === newSaleStart);
       });
@@ -138,38 +142,45 @@ contract('Totem Crowdsale', (accounts) => {
         localCrowdsale = await TotemCrowdsale.new(token.address, {
           from: owner,
         });
-        const receipt = await localCrowdsale.setSaleStart(saleStart);
+        const receipt = await localCrowdsale.setSaleStart(saleStart, {
+          from: owner,
+        });
         const saleSettings = await localCrowdsale.getSaleSettings();
 
         expectEvent(receipt, 'SaleStartUpdated', {
           newSaleStart: new BN(saleStart, 10),
+          updater: owner,
         });
         assert(parseInt(saleSettings.saleStart) === saleStart);
       });
 
       it('should update sale end', async () => {
         const newSaleEnd = saleStart + 100000000;
-        const receipt = await crowdsale.setSaleEnd(newSaleEnd);
+        const receipt = await crowdsale.setSaleEnd(newSaleEnd, { from: owner });
         const saleSettings = await crowdsale.getSaleSettings();
 
         expectEvent(receipt, 'SaleEndUpdated', {
           newSaleEnd: new BN(newSaleEnd, 10),
+          updater: owner,
         });
         assert(parseInt(saleSettings.saleEnd) === newSaleEnd);
       });
 
       it('should update withdrawal start', async () => {
         const newWithdrawalStart = saleStart + 100000000;
-        const receipt = await crowdsale.setWithdrawalStart(newWithdrawalStart);
+        const receipt = await crowdsale.setWithdrawalStart(newWithdrawalStart, {
+          from: owner,
+        });
         const saleSettings = await crowdsale.getSaleSettings();
 
         expectEvent(receipt, 'WithdrawalStartUpdated', {
           newWithdrawalStart: new BN(newWithdrawalStart, 10),
+          updater: owner,
         });
         assert(parseInt(saleSettings.withdrawalStart) === newWithdrawalStart);
       });
 
-      it.only('should update withdraw period duration', async () => {
+      it('should update withdraw period duration', async () => {
         const newWithdrawPeriodDuration = time.duration.weeks(4);
         const receipt = await crowdsale.setWithdrawPeriodDuration(
           newWithdrawPeriodDuration,
@@ -212,6 +223,13 @@ contract('Totem Crowdsale', (accounts) => {
       it('should not update withdrawal start after sale started', async () => {
         await expectRevert(
           crowdsale.setWithdrawalStart(saleStart + 100000000),
+          'TotemCrowdsale: sale already started'
+        );
+      });
+
+      it('should not update withdraw period duration after sale started', async () => {
+        await expectRevert(
+          crowdsale.setWithdrawPeriodDuration(time.duration.weeks(4)),
           'TotemCrowdsale: sale already started'
         );
       });
