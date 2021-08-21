@@ -11,6 +11,7 @@ struct SaleSettings {
     uint256 saleStart;
     uint256 saleEnd;
     uint256 withdrawalStart;
+    uint256 withdrawPeriodDuration;
 }
 
 contract TotemCrowdsale {
@@ -21,7 +22,7 @@ contract TotemCrowdsale {
     uint256 private saleStart;
     uint256 private saleEnd;
     uint256 private withdrawalStart;
-    uint256 private constant withdrawPeriodLength = 4 weeks;
+    uint256 private withdrawPeriodDuration;
     uint256 private constant withdrawPeriodNumber = 10;
     uint256 private immutable minBuyValue;
     // uint256 private maxBuyValue;
@@ -48,8 +49,16 @@ contract TotemCrowdsale {
         emit WithdrawalStartUpdated(newWithdrawalStart, msg.sender);
     }
 
+    function setWithdrawPeriodDuration(uint256 newWithdrawPeriodDuration)
+        external
+        onlyBeforeSaleStart
+    {
+        withdrawPeriodDuration = newWithdrawPeriodDuration;
+        emit WithdrawPeriodDurationUpdated(newWithdrawPeriodDuration, msg.sender);
+    }
+
     function getSaleSettings() external view returns (SaleSettings memory) {
-        return SaleSettings(wallet, saleStart, saleEnd, withdrawalStart);
+        return SaleSettings(wallet, saleStart, saleEnd, withdrawalStart, withdrawPeriodDuration);
     }
 
     // function setWithdrawPeriodLength
@@ -69,7 +78,6 @@ contract TotemCrowdsale {
     event SaleInitialized(
         address indexed token,
         address wallet,
-        uint256 withdrawPeriodLength,
         uint256 withdrawPeriodNumber,
         uint256 minBuyValue,
         uint256 exchangeRate,
@@ -81,6 +89,7 @@ contract TotemCrowdsale {
     event SaleStartUpdated(uint256 newSaleStart, address indexed updater);
     event SaleEndUpdated(uint256 newSaleEnd, address indexed updater);
     event WithdrawalStartUpdated(uint256 newWithdrawalStart, address indexed updater);
+    event WithdrawPeriodDurationUpdated(uint256 newWithdrawPeriodDuration, address indexed updater);
 
     event TokenBought(
         address indexed account,
@@ -120,7 +129,6 @@ contract TotemCrowdsale {
         emit SaleInitialized(
             _token,
             _wallet,
-            withdrawPeriodLength,
             withdrawPeriodNumber,
             _minBuyValue,
             _exchangeRate,
@@ -169,7 +177,7 @@ contract TotemCrowdsale {
     }
 
     function withdrawToken() external {
-        uint256 periodsElapsed = (block.timestamp - withdrawalStart) / withdrawPeriodLength + 1; // reverts if before withdrawalStart
+        uint256 periodsElapsed = (block.timestamp - withdrawalStart) / withdrawPeriodDuration + 1; // reverts if before withdrawalStart
 
         uint256 amountToSend;
         if (periodsElapsed >= withdrawPeriodNumber) {

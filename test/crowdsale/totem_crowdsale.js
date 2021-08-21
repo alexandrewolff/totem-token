@@ -24,7 +24,7 @@ contract('Totem Crowdsale', (accounts) => {
   let saleStart;
   let saleEnd;
   let withdrawalStart;
-  const withdrawPeriodLength = time.duration.weeks(4).toNumber();
+  const withdrawPeriodDuration = time.duration.weeks(4).toNumber();
   const withdrawPeriodNumber = 10;
   let authorizedTokens;
   const minBuyValue = new BN(web3.utils.toWei('300', 'ether'), 10);
@@ -61,6 +61,7 @@ contract('Totem Crowdsale', (accounts) => {
     );
     await crowdsale.setSaleEnd(saleEnd);
     await crowdsale.setWithdrawalStart(withdrawalStart);
+    await crowdsale.setWithdrawPeriodDuration(withdrawPeriodDuration);
     await crowdsale.setSaleStart(saleStart);
 
     await token.transfer(crowdsale.address, tokenTotalSupply, { from: owner });
@@ -84,9 +85,6 @@ contract('Totem Crowdsale', (accounts) => {
       assert(returnValues.token === token.address);
       assert(returnValues.wallet === wallet);
       assert(
-        parseInt(returnValues.withdrawPeriodLength) === withdrawPeriodLength
-      );
-      assert(
         parseInt(returnValues.withdrawPeriodNumber) === withdrawPeriodNumber
       );
       assert(new BN(returnValues.minBuyValue, 10).eq(minBuyValue));
@@ -99,10 +97,6 @@ contract('Totem Crowdsale', (accounts) => {
       authorizedTokens.forEach((token) =>
         assert(returnValues.authorizedTokens.includes(token))
       );
-      // assert(parseInt(saleSettings.wallet) === wallet);
-      assert(parseInt(saleSettings.saleStart) === saleStart);
-      assert(parseInt(saleSettings.saleEnd) === saleEnd);
-      assert(parseInt(saleSettings.withdrawalStart) === withdrawalStart);
     });
   });
 
@@ -173,6 +167,24 @@ contract('Totem Crowdsale', (accounts) => {
           newWithdrawalStart: new BN(newWithdrawalStart, 10),
         });
         assert(parseInt(saleSettings.withdrawalStart) === newWithdrawalStart);
+      });
+
+      it.only('should update withdraw period duration', async () => {
+        const newWithdrawPeriodDuration = time.duration.weeks(4);
+        const receipt = await crowdsale.setWithdrawPeriodDuration(
+          newWithdrawPeriodDuration,
+          { from: owner }
+        );
+        const saleSettings = await crowdsale.getSaleSettings();
+
+        expectEvent(receipt, 'WithdrawPeriodDurationUpdated', {
+          newWithdrawPeriodDuration: newWithdrawPeriodDuration,
+          updater: owner,
+        });
+        assert(
+          parseInt(saleSettings.withdrawPeriodDuration) ===
+            newWithdrawPeriodDuration.toNumber()
+        );
       });
     });
   });
