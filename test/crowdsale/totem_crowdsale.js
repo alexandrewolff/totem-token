@@ -100,6 +100,13 @@ contract('Totem Crowdsale', (accounts) => {
         assert(saleSettings.wallet === owner);
       });
 
+      it('should not update wallet if not owner', async () => {
+        await expectRevert(
+          crowdsale.setWallet(user1, { from: user1 }),
+          'Ownable: caller is not the owner'
+        );
+      });
+
       it('should update sale start', async () => {
         const newSaleStart = saleStart + 100000000;
         const receipt = await crowdsale.setSaleStart(newSaleStart, {
@@ -130,6 +137,15 @@ contract('Totem Crowdsale', (accounts) => {
         assert(parseInt(saleSettings.saleStart) === saleStart);
       });
 
+      it('should not update sale start if not owner', async () => {
+        await expectRevert(
+          crowdsale.setSaleStart(saleStart + 100000000, {
+            from: user1,
+          }),
+          'Ownable: caller is not the owner'
+        );
+      });
+
       it('should update sale end', async () => {
         const newSaleEnd = saleStart + 100000000;
         const receipt = await crowdsale.setSaleEnd(newSaleEnd, { from: owner });
@@ -140,6 +156,13 @@ contract('Totem Crowdsale', (accounts) => {
           updater: owner,
         });
         assert(parseInt(saleSettings.saleEnd) === newSaleEnd);
+      });
+
+      it('should not update sale end if not owner', async () => {
+        await expectRevert(
+          crowdsale.setSaleEnd(saleStart + 100000000, { from: user1 }),
+          'Ownable: caller is not the owner'
+        );
       });
 
       it('should update withdrawal start', async () => {
@@ -154,6 +177,15 @@ contract('Totem Crowdsale', (accounts) => {
           updater: owner,
         });
         assert(parseInt(saleSettings.withdrawalStart) === newWithdrawalStart);
+      });
+
+      it('should not update withdrawal start if not owner', async () => {
+        await expectRevert(
+          crowdsale.setWithdrawalStart(saleStart + 100000000, {
+            from: user1,
+          }),
+          'Ownable: caller is not the owner'
+        );
       });
 
       it('should update withdraw period duration', async () => {
@@ -171,6 +203,15 @@ contract('Totem Crowdsale', (accounts) => {
         assert(
           parseInt(saleSettings.withdrawPeriodDuration) ===
             newWithdrawPeriodDuration.toNumber()
+        );
+      });
+
+      it('should not update withdraw period duration if not owner', async () => {
+        await expectRevert(
+          crowdsale.setWithdrawPeriodDuration(time.duration.weeks(4), {
+            from: user1,
+          }),
+          'Ownable: caller is not the owner'
         );
       });
 
@@ -192,6 +233,15 @@ contract('Totem Crowdsale', (accounts) => {
         );
       });
 
+      it('should not update withdraw period number if not owner', async () => {
+        await expectRevert(
+          crowdsale.setWithdrawPeriodNumber(2, {
+            from: user1,
+          }),
+          'Ownable: caller is not the owner'
+        );
+      });
+
       it('should update minimum buy value', async () => {
         const newMinBuyValue = 1000;
         const receipt = await crowdsale.setMinBuyValue(newMinBuyValue, {
@@ -204,6 +254,15 @@ contract('Totem Crowdsale', (accounts) => {
           updater: owner,
         });
         assert(parseInt(saleSettings.minBuyValue) === newMinBuyValue);
+      });
+
+      it('should not update minimum buy value if not owner', async () => {
+        await expectRevert(
+          crowdsale.setMinBuyValue(200, {
+            from: user1,
+          }),
+          'Ownable: caller is not the owner'
+        );
       });
 
       it('should update maximum buy value', async () => {
@@ -220,6 +279,15 @@ contract('Totem Crowdsale', (accounts) => {
         assert(parseInt(saleSettings.maxBuyValue) === newMaxBuyValue);
       });
 
+      it('should not update maximum buy value if not owner', async () => {
+        await expectRevert(
+          crowdsale.setMaxBuyValue(250, {
+            from: user1,
+          }),
+          'Ownable: caller is not the owner'
+        );
+      });
+
       it('should update exchange rate', async () => {
         const newExchangeRate = 200;
         const receipt = await crowdsale.setExchangeRate(newExchangeRate, {
@@ -232,6 +300,15 @@ contract('Totem Crowdsale', (accounts) => {
           updater: owner,
         });
         assert(parseInt(saleSettings.exchangeRate) === newExchangeRate);
+      });
+
+      it('should not update exchange rate if not owner', async () => {
+        await expectRevert(
+          crowdsale.setExchangeRate(8, {
+            from: user1,
+          }),
+          'Ownable: caller is not the owner'
+        );
       });
 
       it('should update referral reward percentage', async () => {
@@ -251,6 +328,15 @@ contract('Totem Crowdsale', (accounts) => {
         assert(
           parseInt(saleSettings.referralRewardPercentage) ===
             newReferralRewardPercentage
+        );
+      });
+
+      it('should not update referral reward percentage if not owner', async () => {
+        await expectRevert(
+          crowdsale.setReferralRewardPercentage(6, {
+            from: user1,
+          }),
+          'Ownable: caller is not the owner'
         );
       });
 
@@ -278,6 +364,15 @@ contract('Totem Crowdsale', (accounts) => {
           tokens: [testToken1, testToken2],
           updater: owner,
         });
+      });
+
+      it('should not authorize token if not owner', async () => {
+        await expectRevert(
+          crowdsale.authorizePaymentCurrencies([testToken1], {
+            from: user1,
+          }),
+          'Ownable: caller is not the owner'
+        );
       });
     });
   });

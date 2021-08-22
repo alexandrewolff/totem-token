@@ -4,6 +4,7 @@ pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./ITotemToken.sol";
 
 struct SaleSettings {
@@ -20,7 +21,7 @@ struct SaleSettings {
     uint256 referralRewardPercentage;
 }
 
-contract TotemCrowdsale {
+contract TotemCrowdsale is Ownable {
     using SafeERC20 for IERC20;
 
     address private immutable token;
@@ -35,22 +36,22 @@ contract TotemCrowdsale {
     uint256 private exchangeRate;
     uint256 private referralRewardPercentage;
 
-    function setWallet(address newWallet) external {
+    function setWallet(address newWallet) external onlyOwner {
         wallet = newWallet;
         emit WalletUpdated(newWallet, msg.sender);
     }
 
-    function setSaleStart(uint256 newSaleStart) external onlyBeforeSaleStart {
+    function setSaleStart(uint256 newSaleStart) external onlyBeforeSaleStart onlyOwner {
         saleStart = newSaleStart;
         emit SaleStartUpdated(newSaleStart, msg.sender);
     }
 
-    function setSaleEnd(uint256 newSaleEnd) external onlyBeforeSaleStart {
+    function setSaleEnd(uint256 newSaleEnd) external onlyBeforeSaleStart onlyOwner {
         saleEnd = newSaleEnd;
         emit SaleEndUpdated(newSaleEnd, msg.sender);
     }
 
-    function setWithdrawalStart(uint256 newWithdrawalStart) external onlyBeforeSaleStart {
+    function setWithdrawalStart(uint256 newWithdrawalStart) external onlyBeforeSaleStart onlyOwner {
         withdrawalStart = newWithdrawalStart;
         emit WithdrawalStartUpdated(newWithdrawalStart, msg.sender);
     }
@@ -58,27 +59,32 @@ contract TotemCrowdsale {
     function setWithdrawPeriodDuration(uint256 newWithdrawPeriodDuration)
         external
         onlyBeforeSaleStart
+        onlyOwner
     {
         withdrawPeriodDuration = newWithdrawPeriodDuration;
         emit WithdrawPeriodDurationUpdated(newWithdrawPeriodDuration, msg.sender);
     }
 
-    function setWithdrawPeriodNumber(uint256 newWithdrawPeriodNumber) external onlyBeforeSaleStart {
+    function setWithdrawPeriodNumber(uint256 newWithdrawPeriodNumber)
+        external
+        onlyBeforeSaleStart
+        onlyOwner
+    {
         withdrawPeriodNumber = newWithdrawPeriodNumber;
         emit WithdrawPeriodNumberUpdated(newWithdrawPeriodNumber, msg.sender);
     }
 
-    function setMinBuyValue(uint256 newMinBuyValue) external onlyBeforeSaleStart {
+    function setMinBuyValue(uint256 newMinBuyValue) external onlyBeforeSaleStart onlyOwner {
         minBuyValue = newMinBuyValue;
         emit MinBuyValueUpdated(newMinBuyValue, msg.sender);
     }
 
-    function setMaxBuyValue(uint256 newMaxBuyValue) external onlyBeforeSaleStart {
+    function setMaxBuyValue(uint256 newMaxBuyValue) external onlyBeforeSaleStart onlyOwner {
         maxBuyValue = newMaxBuyValue;
         emit MaxBuyValueUpdated(newMaxBuyValue, msg.sender);
     }
 
-    function setExchangeRate(uint256 newExchangeRate) external onlyBeforeSaleStart {
+    function setExchangeRate(uint256 newExchangeRate) external onlyBeforeSaleStart onlyOwner {
         exchangeRate = newExchangeRate;
         emit ExchangeRateUpdated(newExchangeRate, msg.sender);
     }
@@ -86,12 +92,17 @@ contract TotemCrowdsale {
     function setReferralRewardPercentage(uint256 newReferralRewardPercentage)
         external
         onlyBeforeSaleStart
+        onlyOwner
     {
         referralRewardPercentage = newReferralRewardPercentage;
         emit ReferralRewardPercentageUpdated(newReferralRewardPercentage, msg.sender);
     }
 
-    function authorizePaymentCurrencies(address[] memory tokens) external onlyBeforeSaleStart {
+    function authorizePaymentCurrencies(address[] memory tokens)
+        external
+        onlyBeforeSaleStart
+        onlyOwner
+    {
         for (uint256 i = 0; i < tokens.length; i += 1) {
             authorizedPaymentCurrencies[tokens[i]] = true;
         }
