@@ -28,11 +28,13 @@ contract('Totem Crowdsale', (accounts) => {
   const withdrawPeriodNumber = 10;
   let authorizedTokens;
   const minBuyValue = new BN(web3.utils.toWei('300', 'ether'), 10);
+  const maxBuyValue = new BN(web3.utils.toWei('3000', 'ether'), 10);
   const exchangeRate = new BN(50, 10);
   const referralRewardPercentage = new BN(2, 10);
   const tokenTotalSupply = new BN(web3.utils.toWei('1000000', 'ether'), 10);
 
-  const [owner, user1, user2, wallet, usdt, dai] = accounts;
+  const [owner, user1, user2, wallet, usdt, dai, testToken1, testToken2] =
+    accounts;
 
   beforeEach(async () => {
     usdc = await deployBasicToken('USDC', user1);
@@ -48,21 +50,19 @@ contract('Totem Crowdsale', (accounts) => {
 
     authorizedTokens = [usdc.address, usdt, dai];
 
-    crowdsale = await TotemCrowdsale.new(
-      token.address,
-      wallet,
-      minBuyValue,
-      exchangeRate,
-      referralRewardPercentage,
-      authorizedTokens,
-      {
-        from: owner,
-      }
-    );
+    crowdsale = await TotemCrowdsale.new(token.address, {
+      from: owner,
+    });
+    await crowdsale.setWallet(wallet);
     await crowdsale.setSaleEnd(saleEnd);
     await crowdsale.setWithdrawalStart(withdrawalStart);
     await crowdsale.setWithdrawPeriodDuration(withdrawPeriodDuration);
     await crowdsale.setWithdrawPeriodNumber(withdrawPeriodNumber);
+    await crowdsale.setMinBuyValue(minBuyValue);
+    await crowdsale.setMaxBuyValue(maxBuyValue);
+    await crowdsale.setExchangeRate(exchangeRate);
+    await crowdsale.setReferralRewardPercentage(referralRewardPercentage);
+    await crowdsale.authorizePaymentCurrencies([usdc.address, usdt, dai]);
     await crowdsale.setSaleStart(saleStart);
 
     await token.transfer(crowdsale.address, tokenTotalSupply, { from: owner });
@@ -70,17 +70,9 @@ contract('Totem Crowdsale', (accounts) => {
   });
 
   describe('Initialisation', () => {
-    it.skip('should initialize with sale settings', async () => {
-      const web3jsCrowdsale = new web3.eth.Contract(
-        crowdsale.abi,
-        crowdsale.address
-      );
-      const events = await web3jsCrowdsale.getPastEvents('SaleInitialized', {
-        fromBlock: 'earliest',
-        toBlock: 'latest',
-      });
-      const { event, returnValues } = events[0];
+    it('should initialize with token address', async () => {
       const saleSettings = await crowdsale.getSaleSettings();
+      assert(saleSettings.token === token.address);
     });
   });
 
@@ -122,7 +114,7 @@ contract('Totem Crowdsale', (accounts) => {
         assert(parseInt(saleSettings.saleStart) === newSaleStart);
       });
 
-      it.skip('should update sale start if not initialized', async () => {
+      it('should update sale start if not initialized', async () => {
         localCrowdsale = await TotemCrowdsale.new(token.address, {
           from: owner,
         });
@@ -261,6 +253,32 @@ contract('Totem Crowdsale', (accounts) => {
             newReferralRewardPercentage
         );
       });
+
+      it('should authorize one token', async () => {
+        const receipt = await crowdsale.authorizePaymentCurrencies(
+          [testToken1],
+          {
+            from: owner,
+          }
+        );
+        expectEvent(receipt, 'PaymentCurrenciesAuthorized', {
+          tokens: [testToken1],
+          updater: owner,
+        });
+      });
+
+      it('should authorize several tokens', async () => {
+        const receipt = await crowdsale.authorizePaymentCurrencies(
+          [testToken1, testToken2],
+          {
+            from: owner,
+          }
+        );
+        expectEvent(receipt, 'PaymentCurrenciesAuthorized', {
+          tokens: [testToken1, testToken2],
+          updater: owner,
+        });
+      });
     });
   });
 
@@ -329,6 +347,13 @@ contract('Totem Crowdsale', (accounts) => {
       it('should not update referral reward percentage after sale started', async () => {
         await expectRevert(
           crowdsale.setReferralRewardPercentage(5),
+          'TotemCrowdsale: sale already started'
+        );
+      });
+
+      it('should not authorize token after sale started', async () => {
+        await expectRevert(
+          crowdsale.authorizePaymentCurrencies([testToken1]),
           'TotemCrowdsale: sale already started'
         );
       });

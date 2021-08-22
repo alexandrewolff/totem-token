@@ -38,16 +38,7 @@ module.exports = async (deployer, network, accounts) => {
     bscStableCoins.push(testUsdc.address);
   }
 
-  await deployer.deploy(
-    TotemCrowdsale,
-    token.address,
-    wallet,
-    minBuyValue,
-    exchangeRate,
-    referralPercentage,
-    bscStableCoins,
-    {
-      from: accounts[0],
-    }
-  );
+  await deployer.deploy(TotemCrowdsale, token.address, {
+    from: accounts[0],
+  });
 };

@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./ITotemToken.sol";
 
 struct SaleSettings {
+    address token;
     address wallet;
     uint256 saleStart;
     uint256 saleEnd;
@@ -90,11 +91,17 @@ contract TotemCrowdsale {
         emit ReferralRewardPercentageUpdated(newReferralRewardPercentage, msg.sender);
     }
 
-    // function authorizeTokens
+    function authorizePaymentCurrencies(address[] memory tokens) external onlyBeforeSaleStart {
+        for (uint256 i = 0; i < tokens.length; i += 1) {
+            authorizedPaymentCurrencies[tokens[i]] = true;
+        }
+        emit PaymentCurrenciesAuthorized(tokens, msg.sender);
+    }
 
     function getSaleSettings() external view returns (SaleSettings memory) {
         return
             SaleSettings(
+                token,
                 wallet,
                 saleStart,
                 saleEnd,
@@ -110,7 +117,7 @@ contract TotemCrowdsale {
 
     uint256 private soldAmount;
 
-    mapping(address => bool) private authorizedTokens;
+    mapping(address => bool) private authorizedPaymentCurrencies;
     mapping(address => uint256) private userToClaimableAmount;
     mapping(address => uint256) private userToWithdrewAmount;
 
@@ -127,6 +134,7 @@ contract TotemCrowdsale {
         uint256 newReferralRewardPercentage,
         address indexed updater
     );
+    event PaymentCurrenciesAuthorized(address[] tokens, address indexed updater);
 
     event TokenBought(
         address indexed account,
@@ -144,24 +152,11 @@ contract TotemCrowdsale {
         _;
     }
 
-    constructor(
-        address _token,
-        address _wallet,
-        uint256 _minBuyValue,
-        uint256 _exchangeRate,
-        uint256 _referralPercentage,
-        address[] memory _authorizedTokens
-    ) {
+    // getToken
+    // getAuthorizedTokens
+
+    constructor(address _token) {
         token = _token;
-        wallet = _wallet;
-
-        minBuyValue = _minBuyValue;
-        exchangeRate = _exchangeRate;
-        referralRewardPercentage = _referralPercentage;
-
-        for (uint8 i = 0; i < _authorizedTokens.length; i += 1) {
-            authorizedTokens[_authorizedTokens[i]] = true;
-        }
     }
 
     function buyToken(
@@ -169,7 +164,7 @@ contract TotemCrowdsale {
         uint256 value,
         address referral
     ) external {
-        require(authorizedTokens[stableCoin], "TotemCrowdsale: unauthorized token");
+        require(authorizedPaymentCurrencies[stableCoin], "TotemCrowdsale: unauthorized token");
         require(block.timestamp >= saleStart, "TotemCrowdsale: sale not started yet");
         require(block.timestamp <= saleEnd, "TotemCrowdsale: sale ended");
         require(value >= minBuyValue, "TotemCrowdsale: under minimum buy value");
