@@ -161,7 +161,7 @@ contract TotemCrowdsale is Ownable {
         address indexed referral
     );
     event TokenWithdrew(address indexed account, uint256 amount);
-    event SaleFinalized(uint256 remainingBalance);
+    event RemainingTokensBurnt(uint256 remainingBalance);
 
     modifier onlyBeforeSaleStart() {
         if (saleStart > 0) {
@@ -240,10 +240,10 @@ contract TotemCrowdsale is Ownable {
         IERC20(token).transfer(msg.sender, amountToSend); // we know our token reverts if transfer not successfull
     }
 
-    function finalizeSale() external {
+    function burnRemainingTokens() external {
         require(block.timestamp > saleEnd, "TotemCrowdsale: sale not ended yet");
         uint256 balance = IERC20(token).balanceOf(address(this));
-        emit SaleFinalized(balance);
+        emit RemainingTokensBurnt(balance);
         ITotemToken(token).burn(balance);
     }
 
@@ -259,7 +259,7 @@ contract TotemCrowdsale is Ownable {
         return userToWithdrewAmount[account];
     }
 
-    // function isAuthorizedPaymentCurrency(address token) external view returns (uint256) {
-    //     // return userToWithdrewAmount[account];
-    // }
+    function isAuthorizedPaymentCurrency(address paymentCurrency) external view returns (bool) {
+        return authorizedPaymentCurrencies[paymentCurrency];
+    }
 }

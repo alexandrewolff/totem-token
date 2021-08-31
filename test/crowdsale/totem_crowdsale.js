@@ -77,6 +77,13 @@ contract('Totem Crowdsale', (accounts) => {
       const saleSettings = await crowdsale.getSaleSettings();
       assert(saleSettings.token === token.address);
     });
+
+    it('should authorize payment currencies', async () => {
+      authorizedTokens.forEach(async (token) => {
+        const isAuthorized = await crowdsale.isAuthorizedPaymentCurrency(token);
+        assert(isAuthorized === true);
+      });
+    });
   });
 
   describe('Before sale', () => {
@@ -637,7 +644,7 @@ contract('Totem Crowdsale', (accounts) => {
     describe('Finalization', () => {
       it('should not finalize if sale not ended', async () => {
         await expectRevert(
-          crowdsale.finalizeSale({ from: user1 }),
+          crowdsale.burnRemainingTokens({ from: user1 }),
           'TotemCrowdsale: sale not ended yet'
         );
       });
@@ -663,10 +670,10 @@ contract('Totem Crowdsale', (accounts) => {
     describe('Finalization', () => {
       it('should burn remaining tokens on finalize', async () => {
         const initialBalance = await token.balanceOf(crowdsale.address);
-        const receipt = await crowdsale.finalizeSale({ from: user1 });
+        const receipt = await crowdsale.burnRemainingTokens({ from: user1 });
         const finalBalance = await token.balanceOf(crowdsale.address);
 
-        expectEvent(receipt, 'SaleFinalized', {
+        expectEvent(receipt, 'RemainingTokensBurnt', {
           remainingBalance: initialBalance,
         });
         assert(finalBalance.eq(new BN(0, 10)));
