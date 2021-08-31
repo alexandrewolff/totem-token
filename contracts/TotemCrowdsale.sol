@@ -36,6 +36,90 @@ contract TotemCrowdsale is Ownable {
     uint256 private exchangeRate;
     uint256 private referralRewardPercentage;
 
+    uint256 private soldAmount;
+
+    mapping(address => bool) private authorizedPaymentCurrencies;
+    mapping(address => bool) private referrals;
+    mapping(address => uint256) private userToClaimableAmount;
+    mapping(address => uint256) private userToWithdrewAmount;
+
+    event WalletUpdated(address newWallet, address indexed updater);
+    event SaleStartUpdated(uint256 newSaleStart, address indexed updater);
+    event SaleEndUpdated(uint256 newSaleEnd, address indexed updater);
+    event WithdrawalStartUpdated(uint256 newWithdrawalStart, address indexed updater);
+    event WithdrawPeriodDurationUpdated(uint256 newWithdrawPeriodDuration, address indexed updater);
+    event WithdrawPeriodNumberUpdated(uint256 newWithdrawPeriodNumber, address indexed updater);
+    event MinBuyValueUpdated(uint256 newMinBuyValue, address indexed updater);
+    event MaxTokenAmountPerAddressUpdated(
+        uint256 newMaxTokenAmountPerAddress,
+        address indexed updater
+    );
+    event ExchangeRateUpdated(uint256 newExchangeRate, address indexed updater);
+    event ReferralRewardPercentageUpdated(
+        uint256 newReferralRewardPercentage,
+        address indexed updater
+    );
+
+    event PaymentCurrenciesAuthorized(address[] tokens, address indexed updater);
+
+    event ReferralRegistered(address newReferral);
+    event TokenBought(
+        address indexed account,
+        address indexed stableCoin,
+        uint256 value,
+        address indexed referral
+    );
+    event TokenWithdrew(address indexed account, uint256 amount);
+    event RemainingTokensBurnt(uint256 remainingBalance);
+
+    modifier onlyBeforeSaleStart() {
+        if (saleStart > 0) {
+            require(block.timestamp < saleStart, "TotemCrowdsale: sale already started");
+        }
+        _;
+    }
+
+    constructor(address _token) {
+        token = _token;
+    }
+
+    function getSaleSettings() external view returns (SaleSettings memory) {
+        return
+            SaleSettings(
+                token,
+                wallet,
+                saleStart,
+                saleEnd,
+                withdrawalStart,
+                withdrawPeriodDuration,
+                withdrawPeriodNumber,
+                minBuyValue,
+                maxTokenAmountPerAddress,
+                exchangeRate,
+                referralRewardPercentage
+            );
+    }
+
+    function getSoldAmount() external view returns (uint256) {
+        return soldAmount;
+    }
+
+    function getClaimableAmount(address account) external view returns (uint256) {
+        return userToClaimableAmount[account];
+    }
+
+    function getWithdrewAmount(address account) external view returns (uint256) {
+        return userToWithdrewAmount[account];
+    }
+
+    function isAuthorizedPaymentCurrency(address paymentCurrency) external view returns (bool) {
+        return authorizedPaymentCurrencies[paymentCurrency];
+    }
+
+    function isReferral(address account) external view returns (bool) {
+        return referrals[account];
+    }
+
     function setWallet(address newWallet) external onlyOwner {
         wallet = newWallet;
         emit WalletUpdated(newWallet, msg.sender);
@@ -113,65 +197,9 @@ contract TotemCrowdsale is Ownable {
         emit PaymentCurrenciesAuthorized(tokens, msg.sender);
     }
 
-    function getSaleSettings() external view returns (SaleSettings memory) {
-        return
-            SaleSettings(
-                token,
-                wallet,
-                saleStart,
-                saleEnd,
-                withdrawalStart,
-                withdrawPeriodDuration,
-                withdrawPeriodNumber,
-                minBuyValue,
-                maxTokenAmountPerAddress,
-                exchangeRate,
-                referralRewardPercentage
-            );
-    }
-
-    uint256 private soldAmount;
-
-    mapping(address => bool) private authorizedPaymentCurrencies;
-    mapping(address => uint256) private userToClaimableAmount;
-    mapping(address => uint256) private userToWithdrewAmount;
-
-    event WalletUpdated(address newWallet, address indexed updater);
-    event SaleStartUpdated(uint256 newSaleStart, address indexed updater);
-    event SaleEndUpdated(uint256 newSaleEnd, address indexed updater);
-    event WithdrawalStartUpdated(uint256 newWithdrawalStart, address indexed updater);
-    event WithdrawPeriodDurationUpdated(uint256 newWithdrawPeriodDuration, address indexed updater);
-    event WithdrawPeriodNumberUpdated(uint256 newWithdrawPeriodNumber, address indexed updater);
-    event MinBuyValueUpdated(uint256 newMinBuyValue, address indexed updater);
-    event MaxTokenAmountPerAddressUpdated(
-        uint256 newMaxTokenAmountPerAddress,
-        address indexed updater
-    );
-    event ExchangeRateUpdated(uint256 newExchangeRate, address indexed updater);
-    event ReferralRewardPercentageUpdated(
-        uint256 newReferralRewardPercentage,
-        address indexed updater
-    );
-    event PaymentCurrenciesAuthorized(address[] tokens, address indexed updater);
-
-    event TokenBought(
-        address indexed account,
-        address indexed stableCoin,
-        uint256 value,
-        address indexed referral
-    );
-    event TokenWithdrew(address indexed account, uint256 amount);
-    event RemainingTokensBurnt(uint256 remainingBalance);
-
-    modifier onlyBeforeSaleStart() {
-        if (saleStart > 0) {
-            require(block.timestamp < saleStart, "TotemCrowdsale: sale already started");
-        }
-        _;
-    }
-
-    constructor(address _token) {
-        token = _token;
+    function registerReferral(address account) external {
+        referrals[account] = true;
+        emit ReferralRegistered(account);
     }
 
     function buyToken(
@@ -183,11 +211,6 @@ contract TotemCrowdsale is Ownable {
         require(block.timestamp >= saleStart, "TotemCrowdsale: sale not started yet");
         require(block.timestamp <= saleEnd, "TotemCrowdsale: sale ended");
         require(value >= minBuyValue, "TotemCrowdsale: under minimum buy value");
-        require(
-            referral == address(0) ||
-                (msg.sender != referral && userToClaimableAmount[referral] > 0),
-            "TotemCrowdsale: invalid referral address"
-        );
 
         uint256 tokensAvailable = IERC20(token).balanceOf(address(this));
         uint256 claimableAmount = value * exchangeRate;
@@ -203,6 +226,11 @@ contract TotemCrowdsale is Ownable {
         soldAmount += claimableAmount;
 
         if (referral != address(0)) {
+            require(
+                referrals[referral] && referral != msg.sender,
+                "TotemCrowdsale: invalid referral address"
+            );
+
             uint256 referralReward = (claimableAmount * referralRewardPercentage) / 100;
             require(
                 tokensAvailable >= soldAmount + referralReward,
@@ -245,21 +273,5 @@ contract TotemCrowdsale is Ownable {
         uint256 balance = IERC20(token).balanceOf(address(this));
         emit RemainingTokensBurnt(balance);
         ITotemToken(token).burn(balance);
-    }
-
-    function getSoldAmount() external view returns (uint256) {
-        return soldAmount;
-    }
-
-    function getClaimableAmount(address account) external view returns (uint256) {
-        return userToClaimableAmount[account];
-    }
-
-    function getWithdrewAmount(address account) external view returns (uint256) {
-        return userToWithdrewAmount[account];
-    }
-
-    function isAuthorizedPaymentCurrency(address paymentCurrency) external view returns (bool) {
-        return authorizedPaymentCurrencies[paymentCurrency];
     }
 }

@@ -17,7 +17,7 @@ const deployBasicToken = async (symbol, initialHolder) =>
     from: initialHolder,
   });
 
-contract('Totem Crowdsale', (accounts) => {
+contract('Totem Crowdsale Supply Limit', (accounts) => {
   let crowdsale;
   let token;
   let usdc;
@@ -113,19 +113,10 @@ contract('Totem Crowdsale', (accounts) => {
 
     describe('Referral', () => {
       it('should not sell if not enough supply for referral', async () => {
-        // Add user2 to buyers
-        const user2Value = new BN(web3.utils.toWei('300', 'ether'), 10);
-        await usdc.transfer(user2, user2Value, { from: user1 });
-        await usdc.approve(crowdsale.address, MAX_INT256, { from: user2 });
-        await crowdsale.buyToken(usdc.address, user2Value, ZERO_ADDRESS, {
-          from: user2,
-        });
-        const tokensBought = user2Value.mul(exchangeRate);
+        await crowdsale.registerReferral(user2);
 
         const crowdsaleBalance = await token.balanceOf(crowdsale.address);
-        const supplyLeftValue = crowdsaleBalance
-          .sub(tokensBought)
-          .div(exchangeRate);
+        const supplyLeftValue = crowdsaleBalance.div(exchangeRate);
 
         await expectRevert(
           crowdsale.buyToken(usdc.address, supplyLeftValue, user2, {

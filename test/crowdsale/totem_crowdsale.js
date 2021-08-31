@@ -36,8 +36,17 @@ contract('Totem Crowdsale', (accounts) => {
   const referralRewardPercentage = new BN(2, 10);
   const tokenTotalSupply = new BN(web3.utils.toWei('1000000', 'ether'), 10);
 
-  const [owner, user1, user2, wallet, usdt, dai, testToken1, testToken2] =
-    accounts;
+  const [
+    owner,
+    user1,
+    user2,
+    referral,
+    wallet,
+    usdt,
+    dai,
+    testToken1,
+    testToken2,
+  ] = accounts;
 
   beforeEach(async () => {
     usdc = await deployBasicToken('USDC', user1);
@@ -391,6 +400,18 @@ contract('Totem Crowdsale', (accounts) => {
         );
       });
     });
+
+    describe('Referral', () => {
+      it('should register referral', async () => {
+        const receipt = await crowdsale.registerReferral(referral);
+        const isReferral = await crowdsale.isReferral(referral);
+
+        expectEvent(receipt, 'ReferralRegistered', {
+          newReferral: referral,
+        });
+        assert(isReferral === true);
+      });
+    });
   });
 
   describe('During sale', () => {
@@ -577,14 +598,7 @@ contract('Totem Crowdsale', (accounts) => {
           .mul(referralRewardPercentage)
           .div(new BN(100, 10));
 
-        // Add user2 to buyers
-        const user2Value = new BN(web3.utils.toWei('300', 'ether'), 10);
-        const expectedUsers2Tokens = user2Value.mul(exchangeRate);
-        await usdc.transfer(user2, user2Value, { from: user1 });
-        await usdc.approve(crowdsale.address, MAX_INT256, { from: user2 });
-        await crowdsale.buyToken(usdc.address, user2Value, ZERO_ADDRESS, {
-          from: user2,
-        });
+        await crowdsale.registerReferral(user2);
 
         const initialClaimableAmount = await crowdsale.getClaimableAmount(
           user2
@@ -605,9 +619,7 @@ contract('Totem Crowdsale', (accounts) => {
         );
         assert(
           new BN(soldAmount, 10).eq(
-            expectedTokenAmount
-              .add(expectedReferralAmount)
-              .add(expectedUsers2Tokens)
+            expectedTokenAmount.add(expectedReferralAmount)
           )
         );
       });
