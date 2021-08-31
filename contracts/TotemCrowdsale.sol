@@ -16,7 +16,7 @@ struct SaleSettings {
     uint256 withdrawPeriodDuration;
     uint256 withdrawPeriodNumber;
     uint256 minBuyValue;
-    uint256 maxBuyValue;
+    uint256 maxTokenAmountPerAddress;
     uint256 exchangeRate;
     uint256 referralRewardPercentage;
 }
@@ -32,7 +32,7 @@ contract TotemCrowdsale is Ownable {
     uint256 private withdrawPeriodDuration;
     uint256 private withdrawPeriodNumber;
     uint256 private minBuyValue;
-    uint256 private maxBuyValue;
+    uint256 private maxTokenAmountPerAddress;
     uint256 private exchangeRate;
     uint256 private referralRewardPercentage;
 
@@ -79,9 +79,13 @@ contract TotemCrowdsale is Ownable {
         emit MinBuyValueUpdated(newMinBuyValue, msg.sender);
     }
 
-    function setMaxBuyValue(uint256 newMaxBuyValue) external onlyBeforeSaleStart onlyOwner {
-        maxBuyValue = newMaxBuyValue;
-        emit MaxBuyValueUpdated(newMaxBuyValue, msg.sender);
+    function setMaxTokenAmountPerAddress(uint256 newMaxTokenAmountPerAddress)
+        external
+        onlyBeforeSaleStart
+        onlyOwner
+    {
+        maxTokenAmountPerAddress = newMaxTokenAmountPerAddress;
+        emit MaxTokenAmountPerAddressUpdated(newMaxTokenAmountPerAddress, msg.sender);
     }
 
     function setExchangeRate(uint256 newExchangeRate) external onlyBeforeSaleStart onlyOwner {
@@ -120,7 +124,7 @@ contract TotemCrowdsale is Ownable {
                 withdrawPeriodDuration,
                 withdrawPeriodNumber,
                 minBuyValue,
-                maxBuyValue,
+                maxTokenAmountPerAddress,
                 exchangeRate,
                 referralRewardPercentage
             );
@@ -139,7 +143,10 @@ contract TotemCrowdsale is Ownable {
     event WithdrawPeriodDurationUpdated(uint256 newWithdrawPeriodDuration, address indexed updater);
     event WithdrawPeriodNumberUpdated(uint256 newWithdrawPeriodNumber, address indexed updater);
     event MinBuyValueUpdated(uint256 newMinBuyValue, address indexed updater);
-    event MaxBuyValueUpdated(uint256 newMaxBuyValue, address indexed updater);
+    event MaxTokenAmountPerAddressUpdated(
+        uint256 newMaxTokenAmountPerAddress,
+        address indexed updater
+    );
     event ExchangeRateUpdated(uint256 newExchangeRate, address indexed updater);
     event ReferralRewardPercentageUpdated(
         uint256 newReferralRewardPercentage,
@@ -163,9 +170,6 @@ contract TotemCrowdsale is Ownable {
         _;
     }
 
-    // getToken
-    // getAuthorizedTokens
-
     constructor(address _token) {
         token = _token;
     }
@@ -188,7 +192,11 @@ contract TotemCrowdsale is Ownable {
         uint256 tokensAvailable = IERC20(token).balanceOf(address(this));
         uint256 claimableAmount = value * exchangeRate;
         require(
-            tokensAvailable >= soldAmount + claimableAmount,
+            userToClaimableAmount[msg.sender] + claimableAmount <= maxTokenAmountPerAddress,
+            "TotemCrowdsale: above maximum token amount per address"
+        );
+        require(
+            soldAmount + claimableAmount <= tokensAvailable,
             "TotemCrowdsale: not enough tokens available"
         );
         userToClaimableAmount[msg.sender] += claimableAmount;
@@ -229,7 +237,7 @@ contract TotemCrowdsale is Ownable {
 
         emit TokenWithdrew(msg.sender, amountToSend);
 
-        IERC20(token).transfer(msg.sender, amountToSend); // considers that token reverts if transfer not successfull
+        IERC20(token).transfer(msg.sender, amountToSend); // we know our token reverts if transfer not successfull
     }
 
     function finalizeSale() external {
@@ -250,4 +258,8 @@ contract TotemCrowdsale is Ownable {
     function getWithdrewAmount(address account) external view returns (uint256) {
         return userToWithdrewAmount[account];
     }
+
+    // function isAuthorizedPaymentCurrency(address token) external view returns (uint256) {
+    //     // return userToWithdrewAmount[account];
+    // }
 }

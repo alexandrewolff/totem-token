@@ -28,7 +28,10 @@ contract('Totem Crowdsale', (accounts) => {
   const withdrawPeriodNumber = 10;
   let authorizedTokens;
   const minBuyValue = new BN(web3.utils.toWei('300', 'ether'), 10);
-  const maxBuyValue = new BN(web3.utils.toWei('3000', 'ether'), 10);
+  const maxTokenAmountPerAddress = new BN(
+    web3.utils.toWei('300000', 'ether'),
+    10
+  );
   const exchangeRate = new BN(50, 10);
   const referralRewardPercentage = new BN(2, 10);
   const tokenTotalSupply = new BN(web3.utils.toWei('1000000', 'ether'), 10);
@@ -59,7 +62,7 @@ contract('Totem Crowdsale', (accounts) => {
     await crowdsale.setWithdrawPeriodDuration(withdrawPeriodDuration);
     await crowdsale.setWithdrawPeriodNumber(withdrawPeriodNumber);
     await crowdsale.setMinBuyValue(minBuyValue);
-    await crowdsale.setMaxBuyValue(maxBuyValue);
+    await crowdsale.setMaxTokenAmountPerAddress(maxTokenAmountPerAddress);
     await crowdsale.setExchangeRate(exchangeRate);
     await crowdsale.setReferralRewardPercentage(referralRewardPercentage);
     await crowdsale.authorizePaymentCurrencies([usdc.address, usdt, dai]);
@@ -265,23 +268,29 @@ contract('Totem Crowdsale', (accounts) => {
         );
       });
 
-      it('should update maximum buy value', async () => {
-        const newMaxBuyValue = 3000;
-        const receipt = await crowdsale.setMaxBuyValue(newMaxBuyValue, {
-          from: owner,
-        });
+      it('should update maximum token amount per address', async () => {
+        const newMaxTokenAmountPerAddress = 3000;
+        const receipt = await crowdsale.setMaxTokenAmountPerAddress(
+          newMaxTokenAmountPerAddress,
+          {
+            from: owner,
+          }
+        );
         const saleSettings = await crowdsale.getSaleSettings();
 
-        expectEvent(receipt, 'MaxBuyValueUpdated', {
-          newMaxBuyValue: new BN(newMaxBuyValue, 10),
+        expectEvent(receipt, 'MaxTokenAmountPerAddressUpdated', {
+          newMaxTokenAmountPerAddress: new BN(newMaxTokenAmountPerAddress, 10),
           updater: owner,
         });
-        assert(parseInt(saleSettings.maxBuyValue) === newMaxBuyValue);
+        assert(
+          parseInt(saleSettings.maxTokenAmountPerAddress) ===
+            newMaxTokenAmountPerAddress
+        );
       });
 
-      it('should not update maximum buy value if not owner', async () => {
+      it('should not update maximum token amount per address if not owner', async () => {
         await expectRevert(
-          crowdsale.setMaxBuyValue(250, {
+          crowdsale.setMaxTokenAmountPerAddress(250, {
             from: user1,
           }),
           'Ownable: caller is not the owner'
@@ -427,7 +436,7 @@ contract('Totem Crowdsale', (accounts) => {
 
       it('should not update maximum buy value after sale started', async () => {
         await expectRevert(
-          crowdsale.setMaxBuyValue(1000),
+          crowdsale.setMaxTokenAmountPerAddress(1000),
           'TotemCrowdsale: sale already started'
         );
       });
@@ -506,20 +515,35 @@ contract('Totem Crowdsale', (accounts) => {
         );
       });
 
-      it('should not sell if not enough supply', async () => {
-        const crowdsaleBalance = await token.balanceOf(crowdsale.address);
-        const crowdsaleBalanceValue = crowdsaleBalance.div(exchangeRate);
-
+      it('should not sell if above maximum token amount per address in one time', async () => {
         await expectRevert(
           crowdsale.buyToken(
             usdc.address,
-            crowdsaleBalanceValue.add(new BN(1, 10)),
+            maxTokenAmountPerAddress.div(exchangeRate).mul(new BN(2, 10)),
             ZERO_ADDRESS,
             {
               from: user1,
             }
           ),
-          'TotemCrowdsale: not enough tokens available'
+          'TotemCrowdsale: above maximum token amount per address'
+        );
+      });
+
+      it('should not sell if above maximum token amount per address in multiple times', async () => {
+        await crowdsale.buyToken(
+          usdc.address,
+          maxTokenAmountPerAddress.div(exchangeRate),
+          ZERO_ADDRESS,
+          {
+            from: user1,
+          }
+        );
+
+        await expectRevert(
+          crowdsale.buyToken(usdc.address, 1, ZERO_ADDRESS, {
+            from: user1,
+          }),
+          'TotemCrowdsale: under minimum buy value'
         );
       });
 
@@ -535,23 +559,6 @@ contract('Totem Crowdsale', (accounts) => {
           }),
           'TotemCrowdsale: unauthorized token'
         );
-      });
-
-      it('should sell all tokens left', async () => {
-        const tokenTotalSupplyValue = tokenTotalSupply.div(
-          new BN(exchangeRate, 10)
-        );
-        await crowdsale.buyToken(
-          usdc.address,
-          tokenTotalSupplyValue,
-          ZERO_ADDRESS,
-          {
-            from: user1,
-          }
-        );
-        const claimableAmount = await crowdsale.getClaimableAmount(user1);
-
-        assert(claimableAmount.eq(tokenTotalSupply));
       });
     });
 
@@ -595,26 +602,6 @@ contract('Totem Crowdsale', (accounts) => {
               .add(expectedReferralAmount)
               .add(expectedUsers2Tokens)
           )
-        );
-      });
-
-      it('should not sell if not enough supply for referral', async () => {
-        // Add user2 to buyers
-        const user2Value = new BN(web3.utils.toWei('300', 'ether'), 10);
-        await usdc.transfer(user2, user2Value, { from: user1 });
-        await usdc.approve(crowdsale.address, MAX_INT256, { from: user2 });
-        await crowdsale.buyToken(usdc.address, user2Value, ZERO_ADDRESS, {
-          from: user2,
-        });
-
-        const crowdsaleBalance = await token.balanceOf(crowdsale.address);
-        const supplyLeftValue = crowdsaleBalance.div(exchangeRate);
-
-        await expectRevert(
-          crowdsale.buyToken(usdc.address, supplyLeftValue, user2, {
-            from: user1,
-          }),
-          'TotemCrowdsale: not enough tokens available'
         );
       });
 

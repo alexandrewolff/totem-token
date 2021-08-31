@@ -27,11 +27,16 @@ contract('Totem Crowdsale Withdrawal', (accounts) => {
 
   const tokenTotalSupply = new BN(web3.utils.toWei('100000000', 'ether'), 10);
 
-  let withdrawStart;
+  let withdrawalStart;
+  const withdrawPeriodDuration = time.duration.weeks(4).toNumber();
   const withdrawPeriodNumber = new BN(10, 10);
   const minBuyValue = new BN(web3.utils.toWei('300', 'ether'), 10);
+  const maxTokenAmountPerAddress = new BN(
+    web3.utils.toWei('300000', 'ether'),
+    10
+  );
   const exchangeRate = new BN(50, 10);
-  const referralPercentage = new BN(2, 10);
+  const referralRewardPercentage = new BN(2, 10);
 
   const [owner, user1, user2, user3, user4, user5, user6, wallet] = accounts;
 
@@ -56,24 +61,24 @@ contract('Totem Crowdsale Withdrawal', (accounts) => {
     const now = res.timestamp;
     const saleStart = now + time.duration.days(1).toNumber();
     const saleEnd = saleStart + time.duration.days(30).toNumber();
-    withdrawStart = saleEnd + time.duration.days(60).toNumber();
+    withdrawalStart = saleEnd + time.duration.days(60).toNumber();
 
     const authorizedTokens = [usdc.address];
 
-    crowdsale = await TotemCrowdsale.new(
-      token.address,
-      wallet,
-      saleStart,
-      saleEnd,
-      withdrawStart,
-      minBuyValue,
-      exchangeRate,
-      referralPercentage,
-      authorizedTokens,
-      {
-        from: owner,
-      }
-    );
+    crowdsale = await TotemCrowdsale.new(token.address, {
+      from: owner,
+    });
+    await crowdsale.setWallet(wallet);
+    await crowdsale.setSaleEnd(saleEnd);
+    await crowdsale.setWithdrawalStart(withdrawalStart);
+    await crowdsale.setWithdrawPeriodDuration(withdrawPeriodDuration);
+    await crowdsale.setWithdrawPeriodNumber(withdrawPeriodNumber);
+    await crowdsale.setMinBuyValue(minBuyValue);
+    await crowdsale.setMaxTokenAmountPerAddress(maxTokenAmountPerAddress);
+    await crowdsale.setExchangeRate(exchangeRate);
+    await crowdsale.setReferralRewardPercentage(referralRewardPercentage);
+    await crowdsale.authorizePaymentCurrencies(authorizedTokens);
+    await crowdsale.setSaleStart(saleStart);
 
     await token.transfer(crowdsale.address, tokenTotalSupply, { from: owner });
     await usdc.transfer(user3, user3Bought, { from: user1 });
@@ -121,7 +126,7 @@ contract('Totem Crowdsale Withdrawal', (accounts) => {
 
   describe('At cliff (period 1)', () => {
     before(async () => {
-      await time.increaseTo(withdrawStart);
+      await time.increaseTo(withdrawalStart);
     });
 
     it('should withdraw 10%', async () => {
@@ -177,7 +182,7 @@ contract('Totem Crowdsale Withdrawal', (accounts) => {
 
   describe('At cliff + 4 weeks (period 2)', () => {
     before(async () => {
-      await time.increaseTo(addWeeks(withdrawStart, 4));
+      await time.increaseTo(addWeeks(withdrawalStart, 4));
     });
 
     it('should withdraw 10% more at 2nd withdraw', async () => {
@@ -251,7 +256,7 @@ contract('Totem Crowdsale Withdrawal', (accounts) => {
 
   describe('At cliff + 8 weeks (period 3)', () => {
     before(async () => {
-      await time.increaseTo(addWeeks(withdrawStart, 8));
+      await time.increaseTo(addWeeks(withdrawalStart, 8));
     });
 
     it('should withdraw 10% more at 3rd withdraw', async () => {
@@ -334,7 +339,7 @@ contract('Totem Crowdsale Withdrawal', (accounts) => {
 
   describe('At cliff + 36 weeks (period 10)', () => {
     before(async () => {
-      await time.increaseTo(addWeeks(withdrawStart, 36));
+      await time.increaseTo(addWeeks(withdrawalStart, 36));
     });
 
     it('should withdraw 100%', async () => {
@@ -391,7 +396,7 @@ contract('Totem Crowdsale Withdrawal', (accounts) => {
 
   describe('At cliff + 40 weeks (after period 10)', () => {
     before(async () => {
-      await time.increaseTo(addWeeks(withdrawStart, 40));
+      await time.increaseTo(addWeeks(withdrawalStart, 40));
     });
 
     it('should withdraw 100%', async () => {
