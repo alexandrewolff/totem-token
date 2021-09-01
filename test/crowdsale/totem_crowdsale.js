@@ -65,6 +65,7 @@ contract('Totem Crowdsale', (accounts) => {
     crowdsale = await TotemCrowdsale.new(token.address, {
       from: owner,
     });
+
     await crowdsale.setWallet(wallet);
     await crowdsale.setSaleEnd(saleEnd);
     await crowdsale.setWithdrawalStart(withdrawalStart);
@@ -403,7 +404,7 @@ contract('Totem Crowdsale', (accounts) => {
 
     describe('Referral', () => {
       it('should register referral', async () => {
-        const receipt = await crowdsale.registerReferral(referral);
+        const receipt = await crowdsale.registerAsReferral({ from: referral });
         const isReferral = await crowdsale.isReferral(referral);
 
         expectEvent(receipt, 'ReferralRegistered', {
@@ -598,7 +599,7 @@ contract('Totem Crowdsale', (accounts) => {
           .mul(referralRewardPercentage)
           .div(new BN(100, 10));
 
-        await crowdsale.registerReferral(user2);
+        await crowdsale.registerAsReferral({ from: user2 });
 
         const initialClaimableAmount = await crowdsale.getClaimableAmount(
           user2

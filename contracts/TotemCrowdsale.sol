@@ -197,9 +197,9 @@ contract TotemCrowdsale is Ownable {
         emit PaymentCurrenciesAuthorized(tokens, msg.sender);
     }
 
-    function registerReferral(address account) external {
-        referrals[account] = true;
-        emit ReferralRegistered(account);
+    function registerAsReferral() external {
+        referrals[msg.sender] = true;
+        emit ReferralRegistered(msg.sender);
     }
 
     function buyToken(

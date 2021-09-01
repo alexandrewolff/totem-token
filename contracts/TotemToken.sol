@@ -49,7 +49,10 @@ contract TotemToken is ITotemToken, ERC20, Ownable {
     }
 
     function executeBridgeUpdate() external onlyOwner {
-        require(bridgeUpdate.endGracePeriod <= block.timestamp, "TotemToken: grace period has not finished");
+        require(
+            bridgeUpdate.endGracePeriod <= block.timestamp,
+            "TotemToken: grace period has not finished"
+        );
         require(bridgeUpdate.hasToBeExecuted, "TotemToken: update already executed");
 
         bridgeUpdate.hasToBeExecuted = false;

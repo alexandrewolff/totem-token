@@ -6,7 +6,6 @@ const {
   BN,
   constants,
   expectRevert,
-  expectEvent,
   time,
 } = require('@openzeppelin/test-helpers');
 const { MAX_INT256, ZERO_ADDRESS } = constants;
@@ -113,7 +112,7 @@ contract('Totem Crowdsale Supply Limit', (accounts) => {
 
     describe('Referral', () => {
       it('should not sell if not enough supply for referral', async () => {
-        await crowdsale.registerReferral(user2);
+        await crowdsale.registerAsReferral({ from: user2 });
 
         const crowdsaleBalance = await token.balanceOf(crowdsale.address);
         const supplyLeftValue = crowdsaleBalance.div(exchangeRate);
