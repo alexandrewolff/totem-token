@@ -40,6 +40,7 @@ contract('Totem Crowdsale', (accounts) => {
     owner,
     user1,
     user2,
+    user3,
     referral,
     wallet,
     usdt,
@@ -574,6 +575,25 @@ contract('Totem Crowdsale', (accounts) => {
           }),
           'TotemCrowdsale: under minimum buy value'
         );
+      });
+
+      it('should not sell if user funds insufficient', async () => {
+        await usdc.approve(crowdsale.address, MAX_INT256, { from: user3 });
+
+        await expectRevert(
+          crowdsale.buyToken(
+            usdc.address,
+            web3.utils.toWei('300', 'ether'),
+            ZERO_ADDRESS,
+            {
+              from: user3,
+            }
+          ),
+          'ERC20: transfer amount exceeds balance'
+        );
+
+        const res = await crowdsale.getClaimableAmount(user3);
+        assert(res.eq(new BN(0, 10)));
       });
 
       it('should not accept random token', async () => {

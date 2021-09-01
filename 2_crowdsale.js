@@ -22,15 +22,12 @@ module.exports = async (deployer, network, accounts) => {
   if (network === 'ganache' || network === 'bsc_test') {
     wallet = accounts[0];
 
-    saleStart = new Date();
-    saleStart.setDate(saleStart.getDate() + 1);
-    saleEnd = new Date(saleStart);
-    saleEnd.setDate(saleStart.getDate() + 1);
-    saleStart = Math.floor(saleStart.getTime() / 1000);
-    saleEnd = Math.floor(saleEnd.getTime() / 1000);
+    saleStart = Math.floor(new Date().getTime() / 1000);
+    saleStart += time.duration.minutes(10).toNumber();
+    saleEnd = saleStart + time.duration.minutes(10).toNumber();
 
     withdrawalStart = saleEnd;
-    withdrawPeriodDuration = time.duration.weeks(4).toNumber();
+    withdrawPeriodDuration = time.duration.minutes(10).toNumber();
     withdrawPeriodNumber = 10;
     minBuyValue = web3.utils.toWei('300', 'ether');
     maxTokenAmountPerAddress = web3.utils.toWei('500000', 'ether');

@@ -265,7 +265,10 @@ contract TotemCrowdsale is Ownable {
 
         emit TokenWithdrew(msg.sender, amountToSend);
 
-        IERC20(token).transfer(msg.sender, amountToSend); // we know our token reverts if transfer not successfull
+        require(
+            IERC20(token).transfer(msg.sender, amountToSend),
+            "TotemCrowdsale: transfer failed"
+        ); // we know our implementation returns true if success
     }
 
     function burnRemainingTokens() external {
