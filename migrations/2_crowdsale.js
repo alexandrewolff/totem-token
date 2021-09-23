@@ -23,8 +23,8 @@ module.exports = async (deployer, network, accounts) => {
     wallet = accounts[0];
 
     saleStart = Math.floor(new Date().getTime() / 1000);
-    saleStart += time.duration.minutes(10).toNumber();
-    saleEnd = saleStart + time.duration.minutes(10).toNumber();
+    saleStart += time.duration.minutes(1).toNumber();
+    saleEnd = saleStart + time.duration.weeks(4).toNumber();
 
     withdrawalStart = saleEnd;
     withdrawPeriodDuration = time.duration.minutes(10).toNumber();
@@ -51,16 +51,30 @@ module.exports = async (deployer, network, accounts) => {
 
   try {
     await crowdsale.setWallet(wallet);
+    console.log('Wallet set');
     await crowdsale.setSaleStart(saleStart);
+    console.log('Sale start set');
     await crowdsale.setSaleEnd(saleEnd);
+    console.log('Sale end set');
     await crowdsale.setWithdrawalStart(withdrawalStart);
+    console.log('Withdrawal start set');
     await crowdsale.setWithdrawPeriodDuration(withdrawPeriodDuration);
+    console.log('Withdrawal period duration set');
     await crowdsale.setWithdrawPeriodNumber(withdrawPeriodNumber);
+    console.log('Withdrawal period number set');
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     await crowdsale.setMinBuyValue(minBuyValue);
+    console.log('Minimum buy value set');
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     await crowdsale.setMaxTokenAmountPerAddress(maxTokenAmountPerAddress);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    console.log('Max token amount per address set');
     await crowdsale.setExchangeRate(exchangeRate);
+    console.log('Exchange rate set');
     await crowdsale.setReferralRewardPercentage(referralRewardPercentage);
+    console.log('Referral reward percentage set');
     await crowdsale.authorizePaymentCurrencies(stableCoins);
+    console.log('Payment currencies set');
   } catch (err) {
     console.error(err);
   }
