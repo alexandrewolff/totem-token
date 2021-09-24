@@ -24,6 +24,7 @@ struct SaleSettings {
 contract TotemCrowdsale is Ownable {
     using SafeERC20 for IERC20;
 
+    uint256 public __timestamp;
     address private immutable token;
     address private wallet;
     uint256 private saleStart;
@@ -74,13 +75,17 @@ contract TotemCrowdsale is Ownable {
 
     modifier onlyBeforeSaleStart() {
         if (saleStart > 0) {
-            require(block.timestamp < saleStart, "TotemCrowdsale: sale already started");
+            require(__timestamp < saleStart, "TotemCrowdsale: sale already started");
         }
         _;
     }
 
     constructor(address _token) {
         token = _token;
+    }
+
+    function __setTimestamp(uint256 newTimestamp) external {
+        __timestamp = newTimestamp;
     }
 
     function getSaleSettings() external view returns (SaleSettings memory) {
@@ -125,72 +130,52 @@ contract TotemCrowdsale is Ownable {
         emit WalletUpdated(newWallet, msg.sender);
     }
 
-    function setSaleStart(uint256 newSaleStart) external onlyBeforeSaleStart onlyOwner {
+    function setSaleStart(uint256 newSaleStart) external onlyOwner {
         saleStart = newSaleStart;
         emit SaleStartUpdated(newSaleStart, msg.sender);
     }
 
-    function setSaleEnd(uint256 newSaleEnd) external onlyBeforeSaleStart onlyOwner {
+    function setSaleEnd(uint256 newSaleEnd) external onlyOwner {
         saleEnd = newSaleEnd;
         emit SaleEndUpdated(newSaleEnd, msg.sender);
     }
 
-    function setWithdrawalStart(uint256 newWithdrawalStart) external onlyBeforeSaleStart onlyOwner {
+    function setWithdrawalStart(uint256 newWithdrawalStart) external onlyOwner {
         withdrawalStart = newWithdrawalStart;
         emit WithdrawalStartUpdated(newWithdrawalStart, msg.sender);
     }
 
-    function setWithdrawPeriodDuration(uint256 newWithdrawPeriodDuration)
-        external
-        onlyBeforeSaleStart
-        onlyOwner
-    {
+    function setWithdrawPeriodDuration(uint256 newWithdrawPeriodDuration) external onlyOwner {
         withdrawPeriodDuration = newWithdrawPeriodDuration;
         emit WithdrawPeriodDurationUpdated(newWithdrawPeriodDuration, msg.sender);
     }
 
-    function setWithdrawPeriodNumber(uint256 newWithdrawPeriodNumber)
-        external
-        onlyBeforeSaleStart
-        onlyOwner
-    {
+    function setWithdrawPeriodNumber(uint256 newWithdrawPeriodNumber) external onlyOwner {
         withdrawPeriodNumber = newWithdrawPeriodNumber;
         emit WithdrawPeriodNumberUpdated(newWithdrawPeriodNumber, msg.sender);
     }
 
-    function setMinBuyValue(uint256 newMinBuyValue) external onlyBeforeSaleStart onlyOwner {
+    function setMinBuyValue(uint256 newMinBuyValue) external onlyOwner {
         minBuyValue = newMinBuyValue;
         emit MinBuyValueUpdated(newMinBuyValue, msg.sender);
     }
 
-    function setMaxTokenAmountPerAddress(uint256 newMaxTokenAmountPerAddress)
-        external
-        onlyBeforeSaleStart
-        onlyOwner
-    {
+    function setMaxTokenAmountPerAddress(uint256 newMaxTokenAmountPerAddress) external onlyOwner {
         maxTokenAmountPerAddress = newMaxTokenAmountPerAddress;
         emit MaxTokenAmountPerAddressUpdated(newMaxTokenAmountPerAddress, msg.sender);
     }
 
-    function setExchangeRate(uint256 newExchangeRate) external onlyBeforeSaleStart onlyOwner {
+    function setExchangeRate(uint256 newExchangeRate) external onlyOwner {
         exchangeRate = newExchangeRate;
         emit ExchangeRateUpdated(newExchangeRate, msg.sender);
     }
 
-    function setReferralRewardPercentage(uint256 newReferralRewardPercentage)
-        external
-        onlyBeforeSaleStart
-        onlyOwner
-    {
+    function setReferralRewardPercentage(uint256 newReferralRewardPercentage) external onlyOwner {
         referralRewardPercentage = newReferralRewardPercentage;
         emit ReferralRewardPercentageUpdated(newReferralRewardPercentage, msg.sender);
     }
 
-    function authorizePaymentCurrencies(address[] memory tokens)
-        external
-        onlyBeforeSaleStart
-        onlyOwner
-    {
+    function authorizePaymentCurrencies(address[] memory tokens) external onlyOwner {
         for (uint256 i = 0; i < tokens.length; i += 1) {
             authorizedPaymentCurrencies[tokens[i]] = true;
         }
@@ -208,8 +193,8 @@ contract TotemCrowdsale is Ownable {
         address referral
     ) external {
         require(authorizedPaymentCurrencies[stableCoin], "TotemCrowdsale: unauthorized token");
-        require(block.timestamp >= saleStart, "TotemCrowdsale: sale not started yet");
-        require(block.timestamp <= saleEnd, "TotemCrowdsale: sale ended");
+        require(__timestamp >= saleStart, "TotemCrowdsale: sale not started yet");
+        require(__timestamp <= saleEnd, "TotemCrowdsale: sale ended");
         require(value >= minBuyValue, "TotemCrowdsale: under minimum buy value");
 
         uint256 tokensAvailable = IERC20(token).balanceOf(address(this));
@@ -246,7 +231,7 @@ contract TotemCrowdsale is Ownable {
     }
 
     function withdrawToken() external {
-        uint256 periodsElapsed = (block.timestamp - withdrawalStart) / withdrawPeriodDuration + 1; // reverts if before withdrawalStart
+        uint256 periodsElapsed = (__timestamp - withdrawalStart) / withdrawPeriodDuration + 1; // reverts if before withdrawalStart
 
         uint256 amountToSend;
         if (periodsElapsed >= withdrawPeriodNumber) {
@@ -272,7 +257,7 @@ contract TotemCrowdsale is Ownable {
     }
 
     function burnRemainingTokens() external {
-        require(block.timestamp > saleEnd, "TotemCrowdsale: sale not ended yet");
+        require(__timestamp > saleEnd, "TotemCrowdsale: sale not ended yet");
         uint256 balance = IERC20(token).balanceOf(address(this));
         emit RemainingTokensBurnt(balance);
         ITotemToken(token).burn(balance);
