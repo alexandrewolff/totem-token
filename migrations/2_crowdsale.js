@@ -62,12 +62,9 @@ module.exports = async (deployer, network, accounts) => {
     console.log('Withdrawal period duration set');
     await crowdsale.setWithdrawPeriodNumber(withdrawPeriodNumber);
     console.log('Withdrawal period number set');
-    await new Promise((resolve) => setTimeout(resolve, 2000));
     await crowdsale.setMinBuyValue(minBuyValue);
     console.log('Minimum buy value set');
-    await new Promise((resolve) => setTimeout(resolve, 2000));
     await crowdsale.setMaxTokenAmountPerAddress(maxTokenAmountPerAddress);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
     console.log('Max token amount per address set');
     await crowdsale.setExchangeRate(exchangeRate);
     console.log('Exchange rate set');
