@@ -13,6 +13,7 @@ npm i
 ```
 truffle test
 ```
+Remove migrations files if issues arise (specifically 2_crowdsale.js).
 
 ## Gas consumption report
 
