@@ -5,7 +5,8 @@ pragma solidity 0.8.7;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./ITotemToken.sol";
+import "./interfaces/IERC20WithDecimals.sol";
+import "./interfaces/ITotemToken.sol";
 
 struct SaleSettings {
     address token;
@@ -316,7 +317,10 @@ contract TotemCrowdsale is Ownable {
         onlyOwner
     {
         for (uint256 i = 0; i < tokens.length; i += 1) {
-            require(IERC20(tokens[i]).decimals() == 18, "TotemCrowdsale: one token doesn't match format expectation")
+            require(
+                IERC20WithDecimals(tokens[i]).decimals() == 18,
+                "TotemCrowdsale: one token doesn't match format expectation"
+            );
             authorizedPaymentCurrencies[tokens[i]] = true;
         }
         emit PaymentCurrenciesAuthorized(tokens, msg.sender);
