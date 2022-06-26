@@ -246,7 +246,8 @@ contract TotemCrowdsale is Ownable {
     }
 
     function withdrawToken() external {
-        uint256 periodsElapsed = (block.timestamp - withdrawalStart) / withdrawPeriodDuration + 1; // reverts if before withdrawalStart
+        // Reverts if before withdrawalStart
+        uint256 periodsElapsed = (block.timestamp - withdrawalStart) / withdrawPeriodDuration + 1;
 
         uint256 amountToSend;
         if (periodsElapsed >= withdrawPeriodNumber) {
@@ -265,16 +266,22 @@ contract TotemCrowdsale is Ownable {
 
         emit TokenWithdrew(msg.sender, amountToSend);
 
+        // We know our implementation returns true if success
         require(
             IERC20(token).transfer(msg.sender, amountToSend),
             "TotemCrowdsale: transfer failed"
-        ); // we know our implementation returns true if success
+        );
     }
 
-    function burnRemainingTokens() external {
-        require(block.timestamp > saleEnd, "TotemCrowdsale: sale not ended yet");
+    function burnRemainingTokens() external onlyOwner {
+        require(
+            block.timestamp > saleEnd && block.timestamp < withdrawalStart,
+            "TotemCrowdsale: unable to burn remaining tokens"
+        );
+
         uint256 balance = IERC20(token).balanceOf(address(this));
+        ITotemToken(token).burn(balance - soldAmount);
+
         emit RemainingTokensBurnt(balance);
-        ITotemToken(token).burn(balance);
     }
 }

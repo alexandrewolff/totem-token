@@ -4,9 +4,9 @@
   "description": "",
   "main": "truffle-config.js",
   "directories": {
-    "test": "test"
+    "test": "truffle test",
+    "ganache": "ganache-cli -p 7545 -i 5777"
   },
-  "dependencies": {},
   "scripts": {},
   "author": "",
   "license": "ISC",
@@ -16,9 +16,11 @@
     "@truffle/hdwallet-provider": "^1.0.37",
     "dotenv": "^10.0.0",
     "eth-gas-reporter": "^0.2.22",
+    "ganache-cli": "^6.12.2",
     "prettier": "^2.3.2",
     "prettier-plugin-solidity": "^1.0.0-beta.17",
     "solidity-coverage": "^0.7.17",
+    "truffle": "5.4.2",
     "truffle-plugin-verify": "^0.5.12"
   }
 }
