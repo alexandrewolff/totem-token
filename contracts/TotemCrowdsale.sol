@@ -55,8 +55,8 @@ contract TotemCrowdsale is Ownable {
     // Percentage of the tokens bought that referrals get
     // E.g. for a 30 value, if a buyer buys 100 tokens the referral will get 30
     uint256 private referralRewardPercentage;
-    // Total number of tokens sold (exculdes referral rewards)
-    uint256 private soldAmount;
+    // Total number of tokens sold or gave as referral reward
+    uint256 private allocatedAmount;
 
     // Set the address of token authorized for payments to true
     mapping(address => bool) private authorizedPaymentCurrencies;
@@ -130,8 +130,8 @@ contract TotemCrowdsale is Ownable {
             );
     }
 
-    function getSoldAmount() external view returns (uint256) {
-        return soldAmount;
+    function getAllocatedAmount() external view returns (uint256) {
+        return allocatedAmount;
     }
 
     /**
@@ -362,11 +362,11 @@ contract TotemCrowdsale is Ownable {
         );
         // Checks if this sale will exceed the number of tokens avaible to sell
         require(
-            soldAmount + claimableAmount <= tokensAvailable,
+            allocatedAmount + claimableAmount <= tokensAvailable,
             "TotemCrowdsale: not enough tokens available"
         );
         userToClaimableAmount[msg.sender] += claimableAmount;
-        soldAmount += claimableAmount;
+        allocatedAmount += claimableAmount;
 
         // If a referral is mentioned, adds the reward to its claimable balance
         if (referral != address(0)) {
@@ -378,11 +378,11 @@ contract TotemCrowdsale is Ownable {
 
             uint256 referralReward = (claimableAmount * referralRewardPercentage) / 100;
             require(
-                tokensAvailable >= soldAmount + referralReward,
+                tokensAvailable >= allocatedAmount + referralReward,
                 "TotemCrowdsale: not enough tokens available"
             );
             userToClaimableAmount[referral] += referralReward;
-            soldAmount += referralReward;
+            allocatedAmount += referralReward;
         }
 
         emit TokenBought(msg.sender, stableCoin, value, referral);
@@ -439,7 +439,7 @@ contract TotemCrowdsale is Ownable {
         );
 
         uint256 balance = IERC20(token).balanceOf(address(this));
-        ITotemToken(token).burn(balance - soldAmount);
+        ITotemToken(token).burn(balance - allocatedAmount);
 
         emit RemainingTokensBurnt(balance);
     }
