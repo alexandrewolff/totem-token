@@ -9,7 +9,7 @@ The code is thoroughly documented.
 
 ## Environment
 
-Truffle has been used for that project. It is recommended that you make any truffle command call with `npx truffle` to use the correct truffle version.
+Truffle has been used for that project. It is recommended that you make any truffle command call with `npx truffle` to use the correct version.
 
 Make sure you rename `.env.example` to `.env` and fill its fields.
 
@@ -29,7 +29,7 @@ Remove migrations files if issues arise (specifically 2_crowdsale.js).
 
 ## Gas consumption report
 
-Uncomment the reporter line in the truffle-config.js file to get report on gas consumption after tests
+Uncomment the reporter line in the truffle-config.js file to get report on gas consumption after tests.
 
 ## Get test coverage
 
