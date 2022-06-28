@@ -5,7 +5,8 @@
   "main": "truffle-config.js",
   "directories": {
     "test": "truffle test",
-    "ganache": "ganache-cli -p 7545 -i 5777"
+    "ganache": "ganache-cli -p 7545 -i 5777",
+    "coverage": "truffle run coverage"
   },
   "scripts": {},
   "author": "",
